@@ -230,15 +230,19 @@ export async function listThreads(
   max = 30,
   pageToken?: string,
 ): Promise<{ threads: ThreadSummary[]; next?: string }> {
-  const list = await gmail<{ threads?: { id: string; historyId: string }[]; nextPageToken?: string }>(
-    `/threads?maxResults=${max}&q=${encodeURIComponent(q)}${pageToken ? `&pageToken=${pageToken}` : ''}`,
+  // List messages (strictly newest first), not threads: Gmail ranks threads oddly, e.g. a
+  // reply the group relays in can sort weeks back and fall off the first page.
+  const list = await gmail<{ messages?: { id: string; threadId: string }[]; nextPageToken?: string }>(
+    `/messages?maxResults=${max * 2}&q=${encodeURIComponent(q)}${pageToken ? `&pageToken=${pageToken}` : ''}`,
   );
-  const threads = await mapLimit(list.threads ?? [], 4, async (t) => {
-    const hit = summaryCache.get(t.id);
-    if (hit && hit.historyId === t.historyId) return hit.summary;
-    const full = await gmail<{ messages: RawMessage[] }>(`/threads/${t.id}?format=metadata&${META}`);
+  const newest = new Map<string, string>(); // threadId -> newest matching message id
+  for (const m of list.messages ?? []) if (!newest.has(m.threadId)) newest.set(m.threadId, m.id);
+  const threads = await mapLimit([...newest].slice(0, max), 4, async ([id, latest]) => {
+    const hit = summaryCache.get(id);
+    if (hit && hit.historyId === latest) return hit.summary;
+    const full = await gmail<{ messages: RawMessage[] }>(`/threads/${id}?format=metadata&${META}`);
     const summary = summarize(full);
-    summaryCache.set(t.id, { historyId: t.historyId, summary });
+    summaryCache.set(id, { historyId: latest, summary });
     return summary;
   });
   // Gmail doesn't strictly order by newest message (a reply the group relays in can sort
