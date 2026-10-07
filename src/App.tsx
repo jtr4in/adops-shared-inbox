@@ -271,6 +271,28 @@ function Inbox({ user }: { user: User }) {
 
   const current = threads.find((t) => t.threadId === selected);
 
+  // Draggable divider between the email list and the reading pane.
+  const [listW, setListW] = useState(() => Number(localStorage.getItem('listW')) || 400);
+  const startDrag = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = listW;
+    let w = startW;
+    const move = (ev: MouseEvent) => {
+      w = Math.min(Math.max(startW + ev.clientX - startX, 260), window.innerWidth - 230 - 360);
+      setListW(w);
+    };
+    const up = () => {
+      localStorage.setItem('listW', String(w));
+      document.body.classList.remove('dragging');
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    document.body.classList.add('dragging');
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+
   // Keyboard shortcuts (ignored while typing).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -395,7 +417,7 @@ function Inbox({ user }: { user: User }) {
         )
       )}
       {error && <div className="error banner">{error}</div>}
-      <div className="panes">
+      <div className="panes" style={{ gridTemplateColumns: `230px ${listW}px 6px 1fr` }}>
         <Sidebar
           mailbox={mailbox}
           onMailbox={(m) => {
@@ -418,6 +440,15 @@ function Inbox({ user }: { user: User }) {
           onLoadMore={next ? loadMore : undefined}
           loading={loading}
           caption={`Showing ${mailboxLabel}`}
+        />
+        <div
+          className="splitter"
+          title="Drag to resize · double-click to reset"
+          onMouseDown={startDrag}
+          onDoubleClick={() => {
+            setListW(400);
+            localStorage.setItem('listW', '400');
+          }}
         />
         {current ? (
           <ThreadView key={current.threadId} summary={current} triage={triage[current.key]} me={me} />

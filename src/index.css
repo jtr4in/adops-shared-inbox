@@ -127,3 +127,10 @@ kbd { display: inline-block; min-width: 54px; font: 12px ui-monospace, monospace
 .editor table { border-collapse: collapse; }
 .editor img { max-width: none; }
 .mb-search { background: #d92d20; color: #fff; border-color: #d92d20; font-weight: 600; white-space: nowrap; }
+.list { border-right: 0; }
+.splitter { cursor: col-resize; background: var(--border); position: relative; }
+.splitter:hover, body.dragging .splitter { background: var(--accent); }
+body.dragging { cursor: col-resize; user-select: none; }
+body.dragging iframe { pointer-events: none; }
+.row { user-select: none; }
+.row .snippet, .row .subject { user-select: text; }

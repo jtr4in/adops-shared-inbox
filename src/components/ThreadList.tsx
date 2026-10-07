@@ -92,7 +92,20 @@ export function ThreadList(p: Props) {
             <li
               key={t.threadId}
               className={`row ${t.threadId === selected ? 'selected' : ''} ${t.unread ? 'unread' : ''} ${tr?.assignee ? 'owned' : ''}`}
-              onClick={() => onSelect(t.threadId)}
+              onClick={(e) => {
+                // Shift+click selects a range, Ctrl/Cmd+click adds or removes one; a plain click opens it.
+                if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                  e.preventDefault();
+                  window.getSelection()?.removeAllRanges();
+                  if (e.shiftKey && lastClicked.current === null && selected) {
+                    lastClicked.current = threads.findIndex((x) => x.threadId === selected);
+                  }
+                  toggle(i, e);
+                } else {
+                  lastClicked.current = i;
+                  onSelect(t.threadId);
+                }
+              }}
             >
               <input
                 type="checkbox"
