@@ -32,7 +32,7 @@ export const teammateName = (email?: string | null) =>
 const G = GROUP_ADDRESS;
 // Gmail's {a b c} means "a OR b OR c".
 // deliveredto: also catches mail where adops@ was Bcc'd or forwarded in.
-const TO_GROUP = `{list:${G} to:${G} cc:${G} deliveredto:${G}}`;
+const TO_GROUP = `{list:${G} to:${G} cc:${G} from:${G} deliveredto:${G}}`;
 
 export type Mailbox = 'team' | 'me' | 'all' | 'sent';
 

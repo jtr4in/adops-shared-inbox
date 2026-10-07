@@ -112,6 +112,8 @@ function Inbox({ user }: { user: User }) {
   const [days, setDays] = useState(() => Number(localStorage.getItem('days')) || 90);
   const query = useMemo(() => {
     const base = mailboxQuery(mailbox, days);
+    // "all:" searches your whole Gmail, ignoring the mailbox filter.
+    if (search.startsWith('all:')) return search.slice(4).trim() || base;
     return search ? `${base} ${search}` : base;
   }, [mailbox, search, days]);
 
