@@ -71,7 +71,7 @@ function Inbox({ user }: { user: User }) {
     setLoading(true);
     setError('');
     try {
-      setThreads(await listThreads(search ? `${GROUP_QUERY} ${search}` : GROUP_QUERY, 75));
+      setThreads(await listThreads(search ? `${GROUP_QUERY} ${search}` : GROUP_QUERY, 30));
     } catch (e) {
       setError(String(e));
     } finally {
