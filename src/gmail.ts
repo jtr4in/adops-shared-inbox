@@ -1,4 +1,5 @@
 import { getGmailToken, markTokenExpired } from './firebase';
+import { GROUP_ADDRESS } from './config';
 
 export class AuthExpiredError extends Error {
   constructor() {
@@ -203,7 +204,11 @@ function summarize(t: { messages: RawMessage[] }): ThreadSummary {
     date: last.date,
     count: msgs.length,
     unread: msgs.some((m) => m.unread),
-    sent: t.messages[t.messages.length - 1].labelIds?.includes('SENT') ?? false,
+    // Gmail labels mail the group relays ("X via adops") as Sent, since adops@ is one of
+    // our send-as addresses. Only count it as ours if it isn't from the group itself.
+    sent:
+      (t.messages[t.messages.length - 1].labelIds?.includes('SENT') ?? false) &&
+      !addresses(last.from).includes(GROUP_ADDRESS),
     people: chainPeople(msgs).length,
     firstTo: addresses(first.to),
   };
