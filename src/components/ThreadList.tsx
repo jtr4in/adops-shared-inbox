@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { GROUP_ADDRESS, TEAM, teammateName } from '../config';
 import { addresses, displayName, type ThreadSummary } from '../gmail';
-import { categoryOf, type Triage } from '../triage';
+import { categoryOf, type Presence, type Triage } from '../triage';
 
 interface Props {
   threads: ThreadSummary[];
@@ -14,6 +14,7 @@ interface Props {
   onLoadMore?: () => void;
   loading?: boolean;
   caption: string;
+  presence: Presence[];
 }
 
 export function formatDate(ms: number) {
@@ -116,6 +117,13 @@ export function ThreadList(p: Props) {
               <div className="row-main">
                 <div className="row-top">
                   <span className="from">{t.sent ? `To: ${displayName(t.to)}` : displayName(t.from)}</span>
+                  {p.presence
+                    .filter((x) => x.threadKey === t.key)
+                    .map((x) => (
+                      <span key={x.email} className={`chip live ${x.composing ? 'hot' : ''}`}>
+                        {x.composing ? '✍' : '👀'} {teammateName(x.email).split(' ')[0]}
+                      </span>
+                    ))}
                   {t.people > 2 && <span className="chip people">👥 {t.people} in chain</span>}
                   <span className="date">{formatDate(t.date)}</span>
                 </div>

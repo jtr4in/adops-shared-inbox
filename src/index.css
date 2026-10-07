@@ -145,3 +145,7 @@ body.dragging iframe { pointer-events: none; }
 .menu button:hover { background: var(--accent-soft); }
 .menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
 .menu-who { padding: 4px 10px 6px; }
+.presence-bar { margin-top: 8px; padding: 6px 10px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); font-size: 13px; }
+.presence-bar.hot { background: #fdecec; color: var(--err); font-weight: 600; }
+.chip.live { color: var(--accent); border-color: #c7d6fb; }
+.chip.live.hot { color: var(--err); border-color: #f5b5b5; background: #fdecec; }

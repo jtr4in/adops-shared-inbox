@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CATEGORIES, TEAM, teammateName } from '../config';
 import { setArchived, chainPeople, displayName, downloadAttachment, getThread, markRead, type Message, type ThreadSummary } from '../gmail';
-import { addNote, categoryOf, updateTriage, useNotes, type Triage } from '../triage';
+import { addNote, categoryOf, updateTriage, useNotes, type Presence, type Triage } from '../triage';
 import { formatDate } from './ThreadList';
 import { trackSelection } from '../selection';
 import { Composer, kb, type ReplyMode } from './Composer';
@@ -10,9 +10,11 @@ interface Props {
   summary: ThreadSummary;
   triage: Triage | undefined;
   me: string;
+  others: Presence[]; // teammates on this same thread right now
+  onComposing: (composing: boolean) => void;
 }
 
-export function ThreadView({ summary, triage, me }: Props) {
+export function ThreadView({ summary, triage, me, others, onComposing }: Props) {
   const [messages, setMessages] = useState<Message[] | null>(null);
   const [error, setError] = useState('');
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -38,6 +40,11 @@ export function ThreadView({ summary, triage, me }: Props) {
   const notesRef = useRef<HTMLInputElement>(null);
 
   const set = (patch: Partial<Triage>) => updateTriage(summary.key, summary.subject, patch);
+  useEffect(() => {
+    onComposing(reply !== null);
+    return () => onComposing(false);
+  }, [reply, onComposing]);
+  const replying = others.filter((o) => o.composing);
   // Done also archives the thread in your own Gmail; Reopen moves it back to your inbox.
   const toggleDone = () => {
     const done = !triage?.done;
@@ -135,6 +142,13 @@ export function ThreadView({ summary, triage, me }: Props) {
             )}
           </div>
         )}
+        {others.length > 0 && (
+          <div className={`presence-bar ${replying.length ? 'hot' : ''}`}>
+            {replying.length
+              ? `✍ ${replying.map((o) => teammateName(o.email)).join(', ')} is writing a reply to this right now. Check with them before you send.`
+              : `👀 ${others.map((o) => teammateName(o.email)).join(', ')} is looking at this email`}
+          </div>
+        )}
         {triage?.updatedBy && (
           <div className="muted small">
             Last change by {teammateName(triage.updatedBy)}
@@ -180,6 +194,7 @@ export function ThreadView({ summary, triage, me }: Props) {
             subject={summary.subject}
             me={me}
             onClose={() => setReply(null)}
+            othersReplying={replying.map((o) => teammateName(o.email))}
             onSent={() => {
               setReply(null);
               load();

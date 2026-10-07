@@ -116,3 +116,52 @@ export function deleteTemplate(id: string) {
 
 export const categoryOf = (t: { subject: string; snippet: string }, tr: Triage | undefined) =>
   tr?.category || categorize(t.subject, t.snippet);
+
+// Live presence: one doc per teammate saying which thread they have open and
+// whether they're writing a reply. Heartbeat keeps it fresh; stale = gone.
+export interface Presence {
+  email: string;
+  threadKey: string | null;
+  composing: boolean;
+  at?: Timestamp;
+}
+
+const PRESENCE_STALE_MS = 60_000;
+
+export function usePresence(): Presence[] {
+  const [list, setList] = useState<Presence[]>([]);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const off = onSnapshot(collection(db, 'presence'), (snap) =>
+      setList(snap.docs.map((d) => ({ email: d.id, ...(d.data() as Omit<Presence, 'email'>) }))),
+    );
+    const id = setInterval(() => tick((n) => n + 1), 15_000); // re-evaluate staleness
+    return () => {
+      off();
+      clearInterval(id);
+    };
+  }, []);
+  const me = auth.currentUser?.email;
+  return list.filter(
+    (p) => p.email !== me && p.threadKey && p.at && Date.now() - p.at.toMillis() < PRESENCE_STALE_MS,
+  );
+}
+
+export function useReportPresence(threadKey: string | null, composing: boolean) {
+  useEffect(() => {
+    const me = auth.currentUser?.email;
+    if (!me) return;
+    const write = (key: string | null) =>
+      setDoc(doc(db, 'presence', me), { threadKey: key, composing: !!key && composing, at: serverTimestamp() }).catch(
+        () => {},
+      );
+    write(threadKey);
+    const id = setInterval(() => write(threadKey), 20_000);
+    const leave = () => write(null);
+    window.addEventListener('beforeunload', leave);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener('beforeunload', leave);
+    };
+  }, [threadKey, composing]);
+}

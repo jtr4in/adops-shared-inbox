@@ -3,7 +3,7 @@ import { onAuthStateChanged, type User } from 'firebase/auth';
 import { AUTH_EXPIRED, AUTH_RENEWED, auth, getGmailToken, signIn, signOut, tokenExpiresAt } from './firebase';
 import { CATEGORIES, DATE_RANGES, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, autoAssignee, type Mailbox } from './config';
 import { AuthExpiredError, displayName, listThreads, setArchived, type ThreadSummary } from './gmail';
-import { categoryOf, updateTriage, useTriage, type Triage } from './triage';
+import { categoryOf, updateTriage, usePresence, useReportPresence, useTriage, type Triage } from './triage';
 import { Sidebar, viewId, type View } from './components/Sidebar';
 import { ThreadList } from './components/ThreadList';
 import { ThreadView } from './components/ThreadView';
@@ -271,6 +271,9 @@ function Inbox({ user }: { user: User }) {
   };
 
   const current = threads.find((t) => t.threadId === selected);
+  const [composing, setComposing] = useState(false);
+  useReportPresence(current?.key ?? null, composing);
+  const presence = usePresence();
 
   // Draggable divider between the email list and the reading pane.
   const [listW, setListW] = useState(() => Number(localStorage.getItem('listW')) || 400);
@@ -451,6 +454,7 @@ function Inbox({ user }: { user: User }) {
           onLoadMore={next ? loadMore : undefined}
           loading={loading}
           caption={`Showing ${mailboxLabel}`}
+          presence={presence}
         />
         <div
           className="splitter"
@@ -462,7 +466,14 @@ function Inbox({ user }: { user: User }) {
           }}
         />
         {current ? (
-          <ThreadView key={current.threadId} summary={current} triage={triage[current.key]} me={me} />
+          <ThreadView
+            key={current.threadId}
+            summary={current}
+            triage={triage[current.key]}
+            me={me}
+            others={presence.filter((p) => p.threadKey === current.key)}
+            onComposing={setComposing}
+          />
         ) : (
           <div className="center muted">Select an email</div>
         )}

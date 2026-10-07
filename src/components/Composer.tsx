@@ -21,6 +21,7 @@ interface Props {
   me: string;
   onClose: () => void;
   onSent: () => void;
+  othersReplying?: string[];
 }
 
 const uniq = (xs: string[]) => [...new Set(xs)];
@@ -72,7 +73,7 @@ const TITLES: Record<ReplyMode, string> = {
   new: 'New email',
 };
 
-export function Composer({ mode, messages, subject = '', me, onClose, onSent }: Props) {
+export function Composer({ mode, messages, subject = '', me, onClose, onSent, othersReplying = [] }: Props) {
   const last = messages?.[messages.length - 1];
   const [sendAs, setSendAs] = useState<SendAs[]>([]);
   const [from, setFrom] = useState('');
@@ -159,6 +160,7 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent }: 
   }
 
   async function submit() {
+    if (othersReplying.length && !confirm(`${othersReplying.join(', ')} is also replying to this email right now. Send anyway?`)) return;
     setSending(true);
     setError('');
     try {
