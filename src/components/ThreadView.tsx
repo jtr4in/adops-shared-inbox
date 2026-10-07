@@ -3,6 +3,7 @@ import { CATEGORIES, TEAM, teammateName } from '../config';
 import { setArchived, chainPeople, displayName, downloadAttachment, getThread, markRead, type Message, type ThreadSummary } from '../gmail';
 import { addNote, categoryOf, updateTriage, useNotes, type Triage } from '../triage';
 import { formatDate } from './ThreadList';
+import { trackSelection } from '../selection';
 import { Composer, kb, type ReplyMode } from './Composer';
 
 interface Props {
@@ -222,8 +223,9 @@ function MailBody({ html }: { html: string }) {
       srcDoc={doc}
       style={{ height }}
       onLoad={(e) => {
-        const body = e.currentTarget.contentDocument?.body;
-        if (body) setHeight(body.scrollHeight + 16);
+        const d = e.currentTarget.contentDocument;
+        if (d?.body) setHeight(d.body.scrollHeight + 16);
+        if (d) trackSelection(d);
       }}
     />
   );

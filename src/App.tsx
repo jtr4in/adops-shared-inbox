@@ -10,6 +10,7 @@ import { ThreadView } from './components/ThreadView';
 import { SignatureDialog } from './components/SignatureDialog';
 import { TemplatesDialog } from './components/TemplatesDialog';
 import { Composer } from './components/Composer';
+import { mbSearch } from './selection';
 
 const SYNC_EVERY_MS = 60_000;
 
@@ -24,6 +25,7 @@ const SHORTCUTS: [string, string][] = [
   ['e', 'Mark done / reopen'],
   ['n', 'Private note'],
   ['c', 'New email'],
+  ['s', 'MB Search highlighted text'],
   ['/', 'Search'],
   ['?', 'This list'],
 ];
@@ -293,6 +295,7 @@ function Inbox({ user }: { user: User }) {
         m: () => act('assignMe'),
         n: () => act('note'),
         c: () => setDialog('compose'),
+        s: mbSearch,
         '/': () => document.querySelector<HTMLInputElement>('.topbar input')?.focus(),
         '?': () => setDialog('keys'),
         Escape: () => setDialog(null),
@@ -326,6 +329,14 @@ function Inbox({ user }: { user: User }) {
         >
           <input placeholder="Search mail (Gmail syntax)" value={search} onChange={(e) => setSearch(e.target.value)} />
         </form>
+        <button
+          className="mb-search"
+          title="Highlight text anywhere (even inside an email), then click to search MaxBounty admin"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={mbSearch}
+        >
+          🔍 MB Search
+        </button>
         <select
           value={days}
           title="How far back to load"

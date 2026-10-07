@@ -126,3 +126,4 @@ kbd { display: inline-block; min-width: 54px; font: 12px ui-monospace, monospace
 .editor p { margin: 0; }
 .editor table { border-collapse: collapse; }
 .editor img { max-width: none; }
+.mb-search { background: #d92d20; color: #fff; border-color: #d92d20; font-weight: 600; white-space: nowrap; }
