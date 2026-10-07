@@ -241,6 +241,9 @@ export async function listThreads(
     summaryCache.set(t.id, { historyId: t.historyId, summary });
     return summary;
   });
+  // Gmail doesn't strictly order by newest message (a reply the group relays in can sort
+  // as old), so order by the latest message ourselves.
+  threads.sort((a, b) => b.date - a.date);
   return { threads, next: list.nextPageToken };
 }
 

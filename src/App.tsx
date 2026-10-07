@@ -153,7 +153,7 @@ function Inbox({ user }: { user: User }) {
       setLoading(true);
       setError('');
       try {
-        const r = await listThreads(query, 30);
+        const r = await listThreads(query, 75);
         if (mailbox !== 'sent' && !search) {
           if (seen.current) {
             const fresh = r.threads.filter((t) => !seen.current!.has(t.threadId) && !t.sent);
@@ -166,7 +166,7 @@ function Inbox({ user }: { user: User }) {
           const oldest = r.threads.at(-1)?.date ?? 0;
           if (reset || !oldest) return r.threads;
           const fresh = new Set(r.threads.map((t) => t.threadId));
-          return [...r.threads, ...cur.filter((t) => !fresh.has(t.threadId) && t.date < oldest)];
+          return [...r.threads, ...cur.filter((t) => !fresh.has(t.threadId) && t.date < oldest)].sort((a, b) => b.date - a.date);
         });
         if (reset) setNext(r.next);
         setLastSync(Date.now());
@@ -252,7 +252,7 @@ function Inbox({ user }: { user: User }) {
   const loadMore = async () => {
     setLoading(true);
     try {
-      const r = await listThreads(query, 30, next);
+      const r = await listThreads(query, 75, next);
       setThreads((cur) => [...cur, ...r.threads.filter((t) => !cur.some((c) => c.threadId === t.threadId))]);
       setNext(r.next);
     } catch (e) {
