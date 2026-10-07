@@ -50,42 +50,56 @@ export function ThreadView({ summary, triage, me }: Props) {
       <div className="thread-head">
         <h2>{summary.subject}</h2>
         <div className="actions">
-          <button className="primary" onClick={() => setReply('replyAll')}>Reply all</button>
-          <button onClick={() => setReply('reply')}>Reply</button>
-          <button onClick={() => setReply('forward')}>Forward</button>
-          <select value={triage?.assignee ?? ''} onChange={(e) => set({ assignee: e.target.value || null })}>
-            <option value="">Unassigned</option>
-            {TEAM.map((t) => (
-              <option key={t.email} value={t.email}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-          {triage?.assignee !== me && <button onClick={() => set({ assignee: me })}>Take it</button>}
-          <button className={triage?.flagged ? 'on' : ''} onClick={() => set({ flagged: !triage?.flagged })}>
-            ⚑ {triage?.flagged ? 'Flagged' : 'Flag'}
-          </button>
-          <button className={triage?.done ? 'on' : ''} onClick={() => set({ done: !triage?.done })}>
-            {triage?.done ? 'Reopen' : '✓ Mark done'}
-          </button>
-          <button className="note-btn" onClick={() => notesRef.current?.focus()}>
-            🔒 Private note
-          </button>
-          <select
-            value={categoryOf(summary, triage)}
-            onChange={(e) => set({ category: e.target.value })}
-            title="Smart folder"
-          >
-            {CATEGORIES.map((c) => (
-              <option key={c.name}>{c.name}</option>
-            ))}
-          </select>
+          <div className="group">
+            <button className="primary" onClick={() => setReply('replyAll')}>↩ Reply all</button>
+            <button onClick={() => setReply('reply')}>Reply</button>
+            <button onClick={() => setReply('forward')}>Forward</button>
+          </div>
+          <span className="spacer" />
+          <div className="group">
+            <select
+              className={`assignee ${triage?.assignee ? 'set' : ''}`}
+              value={triage?.assignee ?? ''}
+              onChange={(e) => set({ assignee: e.target.value || null })}
+              title="Assigned to"
+            >
+              <option value="">👤 Unassigned</option>
+              {TEAM.map((t) => (
+                <option key={t.email} value={t.email}>
+                  👤 {t.email === me ? `${t.name} (me)` : t.name}
+                </option>
+              ))}
+            </select>
+            <button
+              className={`icon-btn ${triage?.flagged ? 'on flagged' : ''}`}
+              title={triage?.flagged ? 'Unflag' : 'Flag for help'}
+              onClick={() => set({ flagged: !triage?.flagged })}
+            >
+              ⚑
+            </button>
+            <button className="icon-btn" title="Private note" onClick={() => notesRef.current?.focus()}>
+              🔒
+            </button>
+            <button className={triage?.done ? 'on' : 'done-btn'} onClick={() => set({ done: !triage?.done })}>
+              {triage?.done ? 'Reopen' : '✓ Done'}
+            </button>
+          </div>
         </div>
         {messages && (
           <div className="chain">
             <button className="chip people" onClick={() => setShowPeople(!showPeople)}>
               👥 {people.length} in chain {showPeople ? '▴' : '▾'}
             </button>
+            <select
+              className="cat-select"
+              value={categoryOf(summary, triage)}
+              onChange={(e) => set({ category: e.target.value })}
+              title="Smart folder"
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c.name}>{c.name}</option>
+              ))}
+            </select>
             <span className="muted small">
               {messages.length} message{messages.length > 1 ? 's' : ''}
             </span>

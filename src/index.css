@@ -107,3 +107,10 @@ button.wide { width: 100%; margin-bottom: 4px; padding: 8px; }
 .modal .composer { border: 0; padding: 0; }
 .template-row { display: flex; gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
 input[type="checkbox"] { width: auto; margin: 0; }
+.actions { align-items: center; }
+.actions .group { display: flex; gap: 4px; align-items: center; }
+.icon-btn { width: 34px; padding: 5px 0; }
+.icon-btn.flagged { color: var(--flag); border-color: var(--flag); background: #fff4e5; }
+.assignee.set { color: var(--ok); border-color: var(--ok); font-weight: 600; }
+.done-btn { color: var(--ok); }
+.cat-select { font-size: 12px; padding: 2px 6px; color: var(--muted); }
