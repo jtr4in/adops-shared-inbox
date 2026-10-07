@@ -187,7 +187,26 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
 
 // Thread summaries cached by threadId + historyId, so a refresh only
 // re-fetches threads that actually changed.
-const summaryCache = new Map<string, { historyId: string; summary: ThreadSummary }>();
+// Kept in this browser (localStorage) so reopening the app doesn't re-download every email.
+const CACHE_KEY = 'summaryCache:v1';
+const summaryCache = new Map<string, { historyId: string; summary: ThreadSummary }>(
+  (() => {
+    try {
+      return JSON.parse(localStorage.getItem(CACHE_KEY) ?? '[]');
+    } catch {
+      return [];
+    }
+  })(),
+);
+function saveCache() {
+  try {
+    // Newest 500 only, to stay well under the browser's storage limit.
+    const keep = [...summaryCache].sort((a, b) => b[1].summary.date - a[1].summary.date).slice(0, 500);
+    localStorage.setItem(CACHE_KEY, JSON.stringify(keep));
+  } catch {
+    /* storage full or blocked: the in-memory cache still works */
+  }
+}
 
 function summarize(t: { messages: RawMessage[] }): ThreadSummary {
   const msgs = t.messages.map((m) => parse(m, false));
@@ -245,6 +264,7 @@ export async function listThreads(
     summaryCache.set(id, { historyId: latest, summary });
     return summary;
   });
+  saveCache();
   // Gmail doesn't strictly order by newest message (a reply the group relays in can sort
   // as old), so order by the latest message ourselves.
   threads.sort((a, b) => b.date - a.date);
@@ -256,13 +276,16 @@ export async function getThread(threadId: string): Promise<Message[]> {
   return t.messages.map((m) => parse(m, true));
 }
 
-export async function markRead(messageIds: string[]) {
+export async function markRead(messageIds: string[], threadId?: string) {
   if (!messageIds.length) return;
   await gmail('/messages/batchModify', {
     method: 'POST',
     body: JSON.stringify({ ids: messageIds, removeLabelIds: ['UNREAD'] }),
   });
-  summaryCache.clear();
+  const hit = threadId && summaryCache.get(threadId);
+  if (hit) hit.summary = { ...hit.summary, unread: false };
+  else summaryCache.clear();
+  saveCache();
 }
 
 // Archive (remove from Inbox) or un-archive a thread in the signed-in person's own Gmail.

@@ -27,7 +27,7 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
       .then((m) => {
         setMessages(m);
         setOpen(new Set([m[m.length - 1].id]));
-        markRead(m.filter((x) => x.unread).map((x) => x.id)).catch(() => {});
+        markRead(m.filter((x) => x.unread).map((x) => x.id), summary.threadId).catch(() => {});
       })
       .catch((e) => setError(String(e)));
   useEffect(() => {
