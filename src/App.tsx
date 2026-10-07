@@ -107,6 +107,7 @@ function Inbox({ user }: { user: User }) {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<'sig' | 'templates' | 'compose' | 'keys' | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [days, setDays] = useState(() => Number(localStorage.getItem('days')) || 90);
   const query = useMemo(() => {
@@ -343,14 +344,30 @@ function Inbox({ user }: { user: User }) {
           <div className="muted small">{TEAM.map((t) => t.name).join(' · ')}</div>
         </div>
         <span className="spacer" />
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            refresh(true);
-          }}
-        >
-          <input placeholder="Search mail (Gmail syntax)" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </form>
+        <div className="searchbox">
+          <select
+            value={days}
+            title="How far back to load"
+            onChange={(e) => {
+              setDays(Number(e.target.value));
+              localStorage.setItem('days', e.target.value);
+            }}
+          >
+            {DATE_RANGES.map((d) => (
+              <option key={d} value={d}>
+                {d}d
+              </option>
+            ))}
+          </select>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              refresh(true);
+            }}
+          >
+            <input placeholder="Search mail (Gmail syntax)" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </form>
+        </div>
         <button
           className="mb-search"
           title="Highlight text anywhere (even inside an email), then click to search MaxBounty admin"
@@ -359,47 +376,41 @@ function Inbox({ user }: { user: User }) {
         >
           🔍 MB Search
         </button>
-        <select
-          value={days}
-          title="How far back to load"
-          onChange={(e) => {
-            setDays(Number(e.target.value));
-            localStorage.setItem('days', e.target.value);
-          }}
-        >
-          {DATE_RANGES.map((d) => (
-            <option key={d} value={d}>
-              {d}d
-            </option>
-          ))}
-        </select>
         <span className={`sync ${expired ? 'off' : ''}`}>
           ● {expired ? 'Paused' : lastSync ? `Synced ${new Date(lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Syncing…'}
         </span>
         <button onClick={() => refresh()} disabled={loading} title="Refresh now">
           ⟳
         </button>
-        {'Notification' in window && (
-          <button
-            className={alertsOn ? 'on' : ''}
-            title={alertsOn ? 'Desktop alerts on' : 'Turn on desktop alerts for new mail and assignments'}
-            onClick={() =>
-              alertsOn
-                ? setAlertsOn(false)
-                : Notification.requestPermission().then((p) => setAlertsOn(p === 'granted'))
-            }
-          >
-            {alertsOn ? '🔔' : '🔕'}
+        <div className="menu-wrap">
+          <button className={menuOpen ? 'on' : ''} onClick={() => setMenuOpen(!menuOpen)}>
+            ⚙ Settings
           </button>
-        )}
-        <button title="Keyboard shortcuts" onClick={() => setDialog('keys')}>
-          ⌨
-        </button>
-        <button onClick={() => setDialog('templates')}>Templates</button>
-        <button onClick={() => setDialog('sig')}>Signature</button>
-        <button onClick={signOut} title={me}>
-          Sign out
-        </button>
+          {menuOpen && (
+            <>
+              <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
+              <div className="menu" onClick={() => setMenuOpen(false)}>
+                <div className="menu-who muted small">{me}</div>
+                <button onClick={() => setDialog('templates')}>📝 Templates</button>
+                <button onClick={() => setDialog('sig')}>✍ Signature</button>
+                {'Notification' in window && (
+                  <button
+                    onClick={() =>
+                      alertsOn
+                        ? setAlertsOn(false)
+                        : Notification.requestPermission().then((p) => setAlertsOn(p === 'granted'))
+                    }
+                  >
+                    {alertsOn ? '🔔 Desktop alerts: on' : '🔕 Desktop alerts: off'}
+                  </button>
+                )}
+                <button onClick={() => setDialog('keys')}>⌨ Keyboard shortcuts</button>
+                <hr />
+                <button onClick={signOut}>↩ Sign out</button>
+              </div>
+            </>
+          )}
+        </div>
       </header>
       {expired ? (
         <div className="banner warn">

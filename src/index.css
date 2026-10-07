@@ -134,3 +134,14 @@ body.dragging { cursor: col-resize; user-select: none; }
 body.dragging iframe { pointer-events: none; }
 .row { user-select: none; }
 .row .snippet, .row .subject { user-select: text; }
+.searchbox { display: flex; align-items: stretch; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--panel); }
+.searchbox select { border: 0; border-right: 1px solid var(--border); border-radius: 0; background: #f7f8fa; }
+.searchbox input { border: 0; border-radius: 0; width: 280px; }
+.topbar form { width: auto; }
+.menu-wrap { position: relative; }
+.menu-backdrop { position: fixed; inset: 0; z-index: 9; }
+.menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 10; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px #0002; min-width: 220px; padding: 6px; display: flex; flex-direction: column; }
+.menu button { border: 0; text-align: left; padding: 8px 10px; background: none; }
+.menu button:hover { background: var(--accent-soft); }
+.menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
+.menu-who { padding: 4px 10px 6px; }
