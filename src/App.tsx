@@ -12,6 +12,7 @@ import { SignatureDialog } from './components/SignatureDialog';
 export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [hasToken, setHasToken] = useState(!!getGmailToken());
+  const [signInError, setSignInError] = useState('');
   useEffect(() => onAuthStateChanged(auth, setUser), []);
 
   if (user === undefined) return <div className="center">Loading…</div>;
@@ -22,9 +23,14 @@ export default function App() {
         <h1>AdOps Shared Inbox</h1>
         <p>Shared triage for {GROUP_ADDRESS}</p>
         {user && !allowed && <p className="error">{user.email} is not on the team list.</p>}
-        <button className="primary" onClick={() => signIn().then(() => setHasToken(true))}>
+        <button className="primary" onClick={() =>
+            signIn()
+              .then(() => setHasToken(true))
+              .catch((e) => setSignInError(`${e?.code ?? ''} ${e?.message ?? e}`))
+          }>
           Sign in with Google
         </button>
+        {signInError && <p className="error">{signInError}</p>}
         {user && <button onClick={signOut}>Use a different account</button>}
       </div>
     );
