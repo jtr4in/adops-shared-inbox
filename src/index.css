@@ -121,3 +121,8 @@ input[type="checkbox"] { width: auto; margin: 0; }
 kbd { display: inline-block; min-width: 54px; font: 12px ui-monospace, monospace; background: #f1f3f6; border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; margin: 3px 8px 3px 0; }
 .modal.keys { width: 320px; }
 .topbar select { padding: 5px 6px; }
+/* Compose area mimics a mail client: email fonts, no extra paragraph gaps (Gmail signatures rely on this). */
+.editor { font-family: Calibri, Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; line-height: normal; }
+.editor p { margin: 0; }
+.editor table { border-collapse: collapse; }
+.editor img { max-width: none; }

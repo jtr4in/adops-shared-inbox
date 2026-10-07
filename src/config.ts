@@ -10,18 +10,20 @@ export const firebaseConfig = {
 export const GROUP_ADDRESS: string = env.VITE_GROUP_ADDRESS || 'adops@maxbounty.com';
 
 export interface Teammate {
-  email: string;
+  email: string; // the Google account they sign in with
   name: string;
+  aliases: string[]; // every address that means "this person" (for auto-assign)
 }
 
-// "email:Name,email:Name"
+// "email|alias|alias:Name,email:Name"
 export const TEAM: Teammate[] = (env.VITE_TEAM || '')
   .split(',')
   .map((s: string) => s.trim())
   .filter(Boolean)
   .map((s: string) => {
-    const [email, name] = s.split(':');
-    return { email: email.toLowerCase(), name: name || email };
+    const [emails, name] = s.split(':');
+    const all = emails.split('|').map((e) => e.trim().toLowerCase());
+    return { email: all[0], name: name || all[0], aliases: all };
   });
 
 export const teammateName = (email?: string | null) =>
@@ -58,4 +60,11 @@ export const CATEGORIES: { name: string; match: RegExp }[] = [
 export function categorize(subject: string, snippet: string): string {
   const text = `${subject} ${snippet}`;
   return CATEGORIES.find((c) => c.match.test(text))!.name;
+}
+
+// Smart assignment: an email addressed To exactly one teammate (any of their
+// addresses) belongs to that teammate.
+export function autoAssignee(to: string[]): string | null {
+  const hits = TEAM.filter((t) => t.aliases.some((a) => to.includes(a)));
+  return hits.length === 1 ? hits[0].email : null;
 }

@@ -90,6 +90,7 @@ export interface ThreadSummary {
   unread: boolean;
   sent: boolean; // last message was sent from this mailbox
   people: number; // distinct addresses across the chain
+  firstTo: string[]; // To of the first message, for smart assignment
 }
 
 const header = (p: Part, name: string) =>
@@ -204,6 +205,7 @@ function summarize(t: { messages: RawMessage[] }): ThreadSummary {
     unread: msgs.some((m) => m.unread),
     sent: t.messages[t.messages.length - 1].labelIds?.includes('SENT') ?? false,
     people: chainPeople(msgs).length,
+    firstTo: addresses(first.to),
   };
 }
 

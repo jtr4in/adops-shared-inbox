@@ -44,6 +44,8 @@ ${forward ? '---------- Forwarded message ---------<br>' : ''}<b>From:</b> ${esc
 ${m.html ?? ''}</div>`;
 }
 
+const EMAIL_FONT = 'font-family:Calibri,Arial,Helvetica,sans-serif;font-size:11pt;color:#000';
+
 export const kb = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -162,7 +164,8 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent }: 
     try {
       if (totalBytes > MAX_ATTACH_BYTES) throw new Error('Attachments are over 20 MB. Remove some or share a link instead.');
       const sa = sendAs.find((s) => s.sendAsEmail === from);
-      const html = editor.current?.innerHTML ?? '';
+      // Wrap in the same base font the editor shows, so recipients see what you saw.
+      const html = `<div style="${EMAIL_FONT}">${editor.current?.innerHTML ?? ''}</div>`;
       const outgoing = [
         ...(await Promise.all(files.map(fileToOutgoing))),
         ...(await Promise.all(

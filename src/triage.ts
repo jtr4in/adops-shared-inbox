@@ -21,6 +21,7 @@ export interface Triage {
   flagged?: boolean;
   done?: boolean;
   category?: string; // manual smart-folder override
+  autoAssigned?: boolean; // smart assignment already ran (don't redo after a manual unassign)
   subject?: string;
   updatedBy?: string;
   updatedAt?: Timestamp;

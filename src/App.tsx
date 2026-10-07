@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { AUTH_EXPIRED, AUTH_RENEWED, auth, getGmailToken, signIn, signOut, tokenExpiresAt } from './firebase';
-import { CATEGORIES, DATE_RANGES, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, type Mailbox } from './config';
+import { CATEGORIES, DATE_RANGES, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, autoAssignee, type Mailbox } from './config';
 import { AuthExpiredError, displayName, listThreads, setArchived, type ThreadSummary } from './gmail';
 import { categoryOf, updateTriage, useTriage, type Triage } from './triage';
 import { Sidebar, viewId, type View } from './components/Sidebar';
@@ -183,6 +183,16 @@ function Inbox({ user }: { user: User }) {
     refresh(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
+
+  // Smart assignment: claim new emails sent To a teammate's own address.
+  useEffect(() => {
+    for (const t of threads) {
+      const tr = triage[t.key];
+      if (tr?.assignee || tr?.autoAssigned || tr?.done) continue;
+      const who = autoAssignee(t.firstTo);
+      if (who) updateTriage(t.key, t.subject, { assignee: who, autoAssigned: true });
+    }
+  }, [threads, triage]);
 
   // Unread count in the browser tab title.
   useEffect(() => {
