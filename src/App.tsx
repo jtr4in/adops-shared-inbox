@@ -60,6 +60,7 @@ function Inbox({ user }: { user: User }) {
   const me = user.email!.toLowerCase();
   const triage = useTriage();
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
+  const [next, setNext] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [view, setView] = useState<View>({ kind: 'all' });
@@ -71,7 +72,9 @@ function Inbox({ user }: { user: User }) {
     setLoading(true);
     setError('');
     try {
-      setThreads(await listThreads(search ? `${GROUP_QUERY} ${search}` : GROUP_QUERY, 30));
+      const r = await listThreads(search ? `${GROUP_QUERY} ${search}` : GROUP_QUERY, 30);
+      setThreads(r.threads);
+      setNext(r.next);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -85,6 +88,19 @@ function Inbox({ user }: { user: User }) {
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadMore = async () => {
+    setLoading(true);
+    try {
+      const r = await listThreads(search ? `${GROUP_QUERY} ${search}` : GROUP_QUERY, 30, next);
+      setThreads((cur) => [...cur, ...r.threads.filter((t) => !cur.some((c) => c.threadId === t.threadId))]);
+      setNext(r.next);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const visible = useMemo(
     () => threads.filter((t) => matches(view, triage[t.key], me)),
@@ -132,7 +148,14 @@ function Inbox({ user }: { user: User }) {
       {error && <div className="error banner">{error}</div>}
       <div className="panes">
         <Sidebar view={view} onView={setView} counts={counts} viewId={viewId} />
-        <ThreadList threads={visible} triage={triage} selected={selected} onSelect={setSelected} />
+        <ThreadList
+          threads={visible}
+          triage={triage}
+          selected={selected}
+          onSelect={setSelected}
+          onLoadMore={next ? loadMore : undefined}
+          loading={loading}
+        />
         {current ? (
           <ThreadView key={current.threadId} summary={current} triage={triage[current.key]} me={me} />
         ) : (

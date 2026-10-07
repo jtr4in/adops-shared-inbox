@@ -167,11 +167,15 @@ function summarize(t: { messages: RawMessage[] }): ThreadSummary {
   };
 }
 
-export async function listThreads(q: string, max = 30): Promise<ThreadSummary[]> {
-  const list = await gmail<{ threads?: { id: string; historyId: string }[] }>(
-    `/threads?maxResults=${max}&q=${encodeURIComponent(q)}`,
+export async function listThreads(
+  q: string,
+  max = 30,
+  pageToken?: string,
+): Promise<{ threads: ThreadSummary[]; next?: string }> {
+  const list = await gmail<{ threads?: { id: string; historyId: string }[]; nextPageToken?: string }>(
+    `/threads?maxResults=${max}&q=${encodeURIComponent(q)}${pageToken ? `&pageToken=${pageToken}` : ''}`,
   );
-  return mapLimit(list.threads ?? [], 4, async (t) => {
+  const threads = await mapLimit(list.threads ?? [], 4, async (t) => {
     const hit = summaryCache.get(t.id);
     if (hit && hit.historyId === t.historyId) return hit.summary;
     const full = await gmail<{ messages: RawMessage[] }>(`/threads/${t.id}?format=metadata&${META}`);
@@ -179,6 +183,7 @@ export async function listThreads(q: string, max = 30): Promise<ThreadSummary[]>
     summaryCache.set(t.id, { historyId: t.historyId, summary });
     return summary;
   });
+  return { threads, next: list.nextPageToken };
 }
 
 export async function getThread(threadId: string): Promise<Message[]> {
@@ -189,6 +194,7 @@ export async function getThread(threadId: string): Promise<Message[]> {
 export interface SendAs {
   sendAsEmail: string;
   displayName: string;
+  signature?: string;
   isDefault?: boolean;
 }
 

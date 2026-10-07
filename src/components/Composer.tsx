@@ -45,7 +45,9 @@ export function Composer({ mode, messages, subject, me, onClose, onSent }: Props
   const [useSig, setUseSig] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
-  const [signature] = useSignature(me);
+  const [customSig] = useSignature(me);
+  // Your saved override wins; otherwise use the signature Gmail has for the chosen From address.
+  const signature = customSig || sendAs.find((s) => s.sendAsEmail === from)?.signature || '';
   const editor = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

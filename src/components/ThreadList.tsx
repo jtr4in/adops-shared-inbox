@@ -7,6 +7,8 @@ interface Props {
   triage: Record<string, Triage>;
   selected: string | null;
   onSelect: (threadId: string) => void;
+  onLoadMore?: () => void;
+  loading?: boolean;
 }
 
 export function formatDate(ms: number) {
@@ -17,8 +19,8 @@ export function formatDate(ms: number) {
     : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-export function ThreadList({ threads, triage, selected, onSelect }: Props) {
-  if (!threads.length) return <div className="list center muted">Nothing here</div>;
+export function ThreadList({ threads, triage, selected, onSelect, onLoadMore, loading }: Props) {
+  if (!threads.length && !onLoadMore) return <div className="list center muted">Nothing here</div>;
   return (
     <ul className="list">
       {threads.map((t) => {
@@ -50,6 +52,13 @@ export function ThreadList({ threads, triage, selected, onSelect }: Props) {
           </li>
         );
       })}
+      {onLoadMore && (
+        <li className="more">
+          <button onClick={onLoadMore} disabled={loading}>
+            {loading ? 'Loading…' : 'Load older emails'}
+          </button>
+        </li>
+      )}
     </ul>
   );
 }
