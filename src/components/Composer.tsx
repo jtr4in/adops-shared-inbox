@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { addresses, listSendAs, send, type Message, type SendAs } from '../gmail';
+import {
+  addresses,
+  fileToOutgoing,
+  getAttachmentData,
+  listSendAs,
+  MAX_ATTACH_BYTES,
+  send,
+  type Attachment,
+  type Message,
+  type SendAs,
+} from '../gmail';
 import { saveTemplate, useSignature, useTemplates } from '../triage';
 
 export type ReplyMode = 'reply' | 'replyAll' | 'forward' | 'new';
@@ -28,11 +38,13 @@ function recipients(mode: ReplyMode, last: Message | undefined, mine: string[]) 
 }
 
 function quote(m: Message, forward: boolean) {
-  return `<br><div style="border-top:1px solid #ccc;padding-top:8px;margin-top:16px">
+  return `<div style="border-top:1px solid #ccc;padding-top:8px;margin-top:16px">
 ${forward ? '---------- Forwarded message ---------<br>' : ''}<b>From:</b> ${esc(m.from)}<br><b>Sent:</b> ${new Date(m.date).toLocaleString()}<br>
 <b>To:</b> ${esc(m.to)}<br>${m.cc ? `<b>Cc:</b> ${esc(m.cc)}<br>` : ''}<b>Subject:</b> ${esc(m.subject)}<br><br>
 ${m.html ?? ''}</div>`;
 }
+
+export const kb = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -77,6 +89,34 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent }: 
   // Your saved override wins; otherwise use the signature Gmail has for the chosen From address.
   const signature = customSig || sendAs.find((s) => s.sendAsEmail === from)?.signature || '';
   const editor = useRef<HTMLDivElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  // Forwarding carries the original attachments along (fetched at send time).
+  const [forwarded, setForwarded] = useState<Attachment[]>(mode === 'forward' && last ? last.attachments : []);
+  const originalQuote = last ? quote(last, mode === 'forward') : '';
+
+  // The editor holds your text, then your signature, then the original email,
+  // all editable (trim the quoted email before sending if you like).
+  useEffect(() => {
+    if (editor.current && !editor.current.innerHTML) {
+      editor.current.innerHTML = `<div><br></div><div data-sig></div>${originalQuote ? `<div data-quote>${originalQuote}</div>` : ''}`;
+      const sel = window.getSelection();
+      sel?.collapse(editor.current.firstChild, 0);
+    }
+  }, [originalQuote]);
+  useEffect(() => {
+    const el = editor.current?.querySelector('[data-sig]');
+    if (el) el.innerHTML = useSig && signature ? `<br>${signature}` : '';
+  }, [useSig, signature]);
+
+  const resetQuote = () => {
+    const el = editor.current?.querySelector('[data-quote]');
+    if (el) el.innerHTML = originalQuote;
+    else if (editor.current && originalQuote) editor.current.insertAdjacentHTML('beforeend', `<div data-quote>${originalQuote}</div>`);
+  };
+
+  const totalBytes = files.reduce((n, f) => n + f.size, 0) + forwarded.reduce((n, a) => n + a.size, 0);
+  const addFiles = (list: FileList | null) => list && setFiles((cur) => [...cur, ...Array.from(list)]);
 
   useEffect(() => {
     listSendAs()
@@ -120,9 +160,15 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent }: 
     setSending(true);
     setError('');
     try {
+      if (totalBytes > MAX_ATTACH_BYTES) throw new Error('Attachments are over 20 MB. Remove some or share a link instead.');
       const sa = sendAs.find((s) => s.sendAsEmail === from);
-      const body = editor.current?.innerHTML ?? '';
-      const html = `<div>${body}</div>${useSig && signature ? `<br>${signature}` : ''}${last ? quote(last, mode === 'forward') : ''}`;
+      const html = editor.current?.innerHTML ?? '';
+      const outgoing = [
+        ...(await Promise.all(files.map(fileToOutgoing))),
+        ...(await Promise.all(
+          forwarded.map(async (a) => ({ name: a.name, mimeType: a.mimeType, base64: await getAttachmentData(a) })),
+        )),
+      ];
       const isReply = (mode === 'reply' || mode === 'replyAll') && last;
       await send({
         from: sa?.displayName ? `"${sa.displayName}" <${from}>` : from,
@@ -133,6 +179,7 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent }: 
         threadId: isReply ? last.threadId : undefined,
         inReplyTo: isReply ? last.messageId : undefined,
         references: isReply ? `${last.references} ${last.messageId}`.trim() : undefined,
+        files: outgoing,
       });
       onSent();
     } catch (e) {
@@ -198,9 +245,46 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent }: 
             {t.label}
           </button>
         ))}
+        <button className="tool" title="Attach files" onClick={() => fileInput.current?.click()}>
+          📎
+        </button>
+        <input ref={fileInput} type="file" multiple hidden onChange={(e) => addFiles(e.target.files)} />
+        <span className="spacer" />
+        {originalQuote && (
+          <button className="tool small" onClick={resetQuote} title="Restore the quoted email below">
+            Reset original email
+          </button>
+        )}
       </div>
-      <div ref={editor} className="editor" contentEditable suppressContentEditableWarning />
-      {useSig && signature && <div className="sig-preview" dangerouslySetInnerHTML={{ __html: signature }} />}
+      <div
+        ref={editor}
+        className="editor"
+        contentEditable
+        suppressContentEditableWarning
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          if (e.dataTransfer.files.length) {
+            e.preventDefault();
+            addFiles(e.dataTransfer.files);
+          }
+        }}
+      />
+      {(files.length > 0 || forwarded.length > 0) && (
+        <div className="attach-list">
+          {files.map((f, i) => (
+            <span key={`f${i}`} className="attach">
+              📎 {f.name} <span className="muted">({kb(f.size)})</span>
+              <button onClick={() => setFiles(files.filter((_, j) => j !== i))}>×</button>
+            </span>
+          ))}
+          {forwarded.map((a) => (
+            <span key={a.attachmentId} className="attach">
+              📎 {a.name} <span className="muted">({kb(a.size)})</span>
+              <button onClick={() => setForwarded(forwarded.filter((x) => x !== a))}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
       {error && <div className="error">{error}</div>}
     </div>
   );

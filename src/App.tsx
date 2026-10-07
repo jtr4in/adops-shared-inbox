@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { AUTH_EXPIRED, AUTH_RENEWED, auth, getGmailToken, signIn, signOut, tokenExpiresAt } from './firebase';
-import { CATEGORIES, GROUP_ADDRESS, MAILBOXES, TEAM, type Mailbox } from './config';
-import { AuthExpiredError, listThreads, type ThreadSummary } from './gmail';
+import { CATEGORIES, DATE_RANGES, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, type Mailbox } from './config';
+import { AuthExpiredError, displayName, listThreads, type ThreadSummary } from './gmail';
 import { categoryOf, updateTriage, useTriage, type Triage } from './triage';
 import { Sidebar, viewId, type View } from './components/Sidebar';
 import { ThreadList } from './components/ThreadList';
@@ -12,6 +12,21 @@ import { TemplatesDialog } from './components/TemplatesDialog';
 import { Composer } from './components/Composer';
 
 const SYNC_EVERY_MS = 60_000;
+
+const SHORTCUTS: [string, string][] = [
+  ['j / ↓', 'Next email'],
+  ['k / ↑', 'Previous email'],
+  ['a', 'Reply all'],
+  ['r', 'Reply'],
+  ['f', 'Forward'],
+  ['m', 'Assign to me'],
+  ['!', 'Flag / unflag'],
+  ['e', 'Mark done / reopen'],
+  ['n', 'Private note'],
+  ['c', 'New email'],
+  ['/', 'Search'],
+  ['?', 'This list'],
+];
 
 export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
@@ -88,13 +103,41 @@ function Inbox({ user }: { user: User }) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [dialog, setDialog] = useState<'sig' | 'templates' | 'compose' | null>(null);
+  const [dialog, setDialog] = useState<'sig' | 'templates' | 'compose' | 'keys' | null>(null);
   const [now, setNow] = useState(Date.now());
 
+  const [days, setDays] = useState(() => Number(localStorage.getItem('days')) || 90);
   const query = useMemo(() => {
-    const base = MAILBOXES.find((m) => m.id === mailbox)!.query;
+    const base = mailboxQuery(mailbox, days);
     return search ? `${base} ${search}` : base;
-  }, [mailbox, search]);
+  }, [mailbox, search, days]);
+
+  // Desktop alerts for new mail and for things assigned to you by a teammate.
+  const [alertsOn, setAlertsOn] = useState(() => 'Notification' in window && Notification.permission === 'granted');
+  const notify = useCallback(
+    (title: string, body: string, threadId?: string) => {
+      if (!alertsOn || document.hasFocus()) return;
+      const n = new Notification(title, { body, tag: threadId });
+      n.onclick = () => {
+        window.focus();
+        if (threadId) setSelected(threadId);
+        n.close();
+      };
+    },
+    [alertsOn],
+  );
+  const seen = useRef<Set<string> | null>(null);
+  const prevTriage = useRef(triage);
+  useEffect(() => {
+    for (const [key, tr] of Object.entries(triage)) {
+      const before = prevTriage.current[key];
+      if (prevTriage.current !== triage && Object.keys(prevTriage.current).length && tr.assignee === me && before?.assignee !== me && tr.updatedBy && tr.updatedBy !== me) {
+        const t = threads.find((x) => x.key === key);
+        notify(`${teammateName(tr.updatedBy)} assigned you an email`, tr.subject ?? '', t?.threadId);
+      }
+    }
+    prevTriage.current = triage;
+  }, [triage, threads, me, notify]);
 
   // Keep the newest page fresh without throwing away "Load older" pages.
   const busy = useRef(false);
@@ -106,6 +149,14 @@ function Inbox({ user }: { user: User }) {
       setError('');
       try {
         const r = await listThreads(query, 30);
+        if (mailbox !== 'sent' && !search) {
+          if (seen.current) {
+            const fresh = r.threads.filter((t) => !seen.current!.has(t.threadId) && !t.sent);
+            if (fresh.length === 1) notify(`New: ${fresh[0].subject}`, displayName(fresh[0].from), fresh[0].threadId);
+            else if (fresh.length > 1) notify(`${fresh.length} new emails`, fresh.map((t) => t.subject).join('\n'));
+          }
+          seen.current = new Set([...(seen.current ?? []), ...r.threads.map((t) => t.threadId)]);
+        }
         setThreads((cur) => {
           const oldest = r.threads.at(-1)?.date ?? 0;
           if (reset || !oldest) return r.threads;
@@ -121,15 +172,23 @@ function Inbox({ user }: { user: User }) {
         setLoading(false);
       }
     },
-    [query],
+    [query, mailbox, search, notify],
   );
 
   // New mailbox or search: start over.
   useEffect(() => {
     setThreads([]);
     setChecked(new Set());
+    seen.current = null;
     refresh(true);
-  }, [refresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
+  // Unread count in the browser tab title.
+  useEffect(() => {
+    const n = threads.filter((t) => t.unread && !triage[t.key]?.done).length;
+    document.title = n ? `(${n}) AdOps Inbox` : 'AdOps Inbox';
+  }, [threads, triage]);
 
   // Auto-sync every minute while the tab is visible, and right away when you come back to it.
   useEffect(() => {
@@ -196,6 +255,44 @@ function Inbox({ user }: { user: User }) {
   };
 
   const current = threads.find((t) => t.threadId === selected);
+
+  // Keyboard shortcuts (ignored while typing).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (e.ctrlKey || e.metaKey || e.altKey || el.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(el.tagName)) return;
+      const idx = visible.findIndex((t) => t.threadId === selected);
+      const move = (d: number) => {
+        const t = visible[Math.min(Math.max(idx + d, 0), visible.length - 1)];
+        if (t) setSelected(t.threadId);
+      };
+      const act = (action: string) => window.dispatchEvent(new CustomEvent('thread-action', { detail: action }));
+      const map: Record<string, () => void> = {
+        j: () => move(1),
+        ArrowDown: () => move(1),
+        k: () => move(-1),
+        ArrowUp: () => move(-1),
+        r: () => act('reply'),
+        a: () => act('replyAll'),
+        f: () => act('forward'),
+        e: () => act('done'),
+        '!': () => act('flag'),
+        m: () => act('assignMe'),
+        n: () => act('note'),
+        c: () => setDialog('compose'),
+        '/': () => document.querySelector<HTMLInputElement>('.topbar input')?.focus(),
+        '?': () => setDialog('keys'),
+        Escape: () => setDialog(null),
+      };
+      const fn = map[e.key];
+      if (fn) {
+        e.preventDefault();
+        fn();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [visible, selected]);
   const minutesLeft = Math.round((tokenExpiresAt() - now) / 60_000);
   const mailboxLabel = MAILBOXES.find((m) => m.id === mailbox)!.label;
 
@@ -216,11 +313,41 @@ function Inbox({ user }: { user: User }) {
         >
           <input placeholder="Search mail (Gmail syntax)" value={search} onChange={(e) => setSearch(e.target.value)} />
         </form>
+        <select
+          value={days}
+          title="How far back to load"
+          onChange={(e) => {
+            setDays(Number(e.target.value));
+            localStorage.setItem('days', e.target.value);
+          }}
+        >
+          {DATE_RANGES.map((d) => (
+            <option key={d} value={d}>
+              {d}d
+            </option>
+          ))}
+        </select>
         <span className={`sync ${expired ? 'off' : ''}`}>
           ● {expired ? 'Paused' : lastSync ? `Synced ${new Date(lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Syncing…'}
         </span>
         <button onClick={() => refresh()} disabled={loading} title="Refresh now">
           ⟳
+        </button>
+        {'Notification' in window && (
+          <button
+            className={alertsOn ? 'on' : ''}
+            title={alertsOn ? 'Desktop alerts on' : 'Turn on desktop alerts for new mail and assignments'}
+            onClick={() =>
+              alertsOn
+                ? setAlertsOn(false)
+                : Notification.requestPermission().then((p) => setAlertsOn(p === 'granted'))
+            }
+          >
+            {alertsOn ? '🔔' : '🔕'}
+          </button>
+        )}
+        <button title="Keyboard shortcuts" onClick={() => setDialog('keys')}>
+          ⌨
         </button>
         <button onClick={() => setDialog('templates')}>Templates</button>
         <button onClick={() => setDialog('sig')}>Signature</button>
@@ -276,6 +403,18 @@ function Inbox({ user }: { user: User }) {
       </div>
       {dialog === 'sig' && <SignatureDialog email={me} onClose={() => setDialog(null)} />}
       {dialog === 'templates' && <TemplatesDialog onClose={() => setDialog(null)} />}
+      {dialog === 'keys' && (
+        <div className="modal-backdrop" onClick={() => setDialog(null)}>
+          <div className="modal keys">
+            <h3>Keyboard shortcuts</h3>
+            {SHORTCUTS.map(([k, label]) => (
+              <div key={k}>
+                <kbd>{k}</kbd> {label}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {dialog === 'compose' && (
         <div className="modal-backdrop">
           <div className="modal wide">

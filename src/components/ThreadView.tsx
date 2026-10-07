@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { CATEGORIES, TEAM, teammateName } from '../config';
-import { chainPeople, displayName, getThread, markRead, type Message, type ThreadSummary } from '../gmail';
+import { chainPeople, displayName, downloadAttachment, getThread, markRead, type Message, type ThreadSummary } from '../gmail';
 import { addNote, categoryOf, updateTriage, useNotes, type Triage } from '../triage';
 import { formatDate } from './ThreadList';
-import { Composer, type ReplyMode } from './Composer';
+import { Composer, kb, type ReplyMode } from './Composer';
 
 interface Props {
   summary: ThreadSummary;
@@ -37,6 +37,20 @@ export function ThreadView({ summary, triage, me }: Props) {
   const notesRef = useRef<HTMLInputElement>(null);
 
   const set = (patch: Partial<Triage>) => updateTriage(summary.key, summary.subject, patch);
+
+  // Keyboard shortcuts from the inbox.
+  useEffect(() => {
+    const on = (e: Event) => {
+      const a = (e as CustomEvent<string>).detail;
+      if (a === 'reply' || a === 'replyAll' || a === 'forward') setReply(a);
+      if (a === 'done') set({ done: !triage?.done });
+      if (a === 'flag') set({ flagged: !triage?.flagged });
+      if (a === 'assignMe') set({ assignee: me });
+      if (a === 'note') notesRef.current?.focus();
+    };
+    window.addEventListener('thread-action', on);
+    return () => window.removeEventListener('thread-action', on);
+  });
   const toggle = (id: string) =>
     setOpen((s) => {
       const n = new Set(s);
@@ -136,7 +150,13 @@ export function ThreadView({ summary, triage, me }: Props) {
               <>
                 <MailBody html={m.html ?? ''} />
                 {m.attachments.length > 0 && (
-                  <div className="muted small">📎 {m.attachments.join(', ')}</div>
+                  <div className="attach-list">
+                    {m.attachments.map((a) => (
+                      <button key={a.attachmentId} className="attach" onClick={() => downloadAttachment(a)} title="Download">
+                        📎 {a.name} <span className="muted">({kb(a.size)})</span> ⤓
+                      </button>
+                    ))}
+                  </div>
                 )}
               </>
             ) : (

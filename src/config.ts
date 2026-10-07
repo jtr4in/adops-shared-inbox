@@ -30,16 +30,20 @@ export const teammateName = (email?: string | null) =>
 const G = GROUP_ADDRESS;
 // Gmail's {a b c} means "a OR b OR c".
 const TO_GROUP = `{list:${G} to:${G} cc:${G}}`;
-const WINDOW = 'newer_than:90d';
 
 export type Mailbox = 'team' | 'me' | 'all' | 'sent';
 
 export const MAILBOXES: { id: Mailbox; label: string; query: string }[] = [
-  { id: 'team', label: `Team (${G.split('@')[0]}@)`, query: `${TO_GROUP} ${WINDOW}` },
-  { id: 'me', label: 'Just to me', query: `in:inbox -${TO_GROUP} ${WINDOW}` },
-  { id: 'all', label: 'All combined', query: `{${TO_GROUP.slice(1, -1)} in:inbox} ${WINDOW}` },
-  { id: 'sent', label: 'Sent', query: `in:sent ${WINDOW}` },
+  { id: 'team', label: `Team (${G.split('@')[0]}@)`, query: TO_GROUP },
+  { id: 'me', label: 'Just to me', query: `in:inbox -${TO_GROUP}` },
+  { id: 'all', label: 'All combined', query: `{${TO_GROUP.slice(1, -1)} in:inbox}` },
+  { id: 'sent', label: 'Sent', query: 'in:sent' },
 ];
+
+export const DATE_RANGES = [30, 90, 180, 365];
+
+export const mailboxQuery = (id: Mailbox, days: number) =>
+  `${MAILBOXES.find((m) => m.id === id)!.query} newer_than:${days}d`;
 
 // Smart folders: first match wins, checked against subject + preview.
 // Anyone can override a thread's folder from the thread header.

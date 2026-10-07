@@ -66,7 +66,15 @@ export interface Message {
   snippet: string;
   unread: boolean;
   html?: string;
-  attachments: string[];
+  attachments: Attachment[];
+}
+
+export interface Attachment {
+  messageId: string;
+  attachmentId: string;
+  name: string;
+  mimeType: string;
+  size: number;
 }
 
 export interface ThreadSummary {
@@ -100,9 +108,27 @@ function findPart(p: Part, mime: string): Part | undefined {
   }
 }
 
-function attachmentNames(p: Part): string[] {
-  const own = p.filename ? [p.filename] : [];
-  return own.concat(...(p.parts ?? []).map(attachmentNames));
+function attachmentsOf(p: Part, messageId: string): Attachment[] {
+  const own =
+    p.filename && p.body?.attachmentId
+      ? [{ messageId, attachmentId: p.body.attachmentId, name: p.filename, mimeType: p.mimeType, size: p.body.size }]
+      : [];
+  return own.concat(...(p.parts ?? []).map((c) => attachmentsOf(c, messageId)));
+}
+
+// Returns standard base64 (not base64url), ready for a MIME part or a data URL.
+export async function getAttachmentData(a: Attachment): Promise<string> {
+  const r = await gmail<{ data: string }>(`/messages/${a.messageId}/attachments/${a.attachmentId}`);
+  return r.data.replace(/-/g, '+').replace(/_/g, '/');
+}
+
+export async function downloadAttachment(a: Attachment) {
+  const b64 = await getAttachmentData(a);
+  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type: a.mimeType }));
+  const link = Object.assign(document.createElement('a'), { href: url, download: a.name });
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 const escapeHtml = (s: string) =>
@@ -133,7 +159,7 @@ function parse(m: RawMessage, withBody: boolean): Message {
     snippet: m.snippet,
     unread: m.labelIds?.includes('UNREAD') ?? false,
     html,
-    attachments: withBody ? attachmentNames(p) : [],
+    attachments: withBody ? attachmentsOf(p, m.id) : [],
   };
 }
 
@@ -269,6 +295,29 @@ export interface Outgoing {
   threadId?: string;
   inReplyTo?: string;
   references?: string;
+  files?: OutgoingFile[];
+}
+
+export interface OutgoingFile {
+  name: string;
+  mimeType: string;
+  base64: string; // standard base64
+}
+
+export const MAX_ATTACH_BYTES = 20 * 1024 * 1024;
+
+export function fileToOutgoing(f: File): Promise<OutgoingFile> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () =>
+      resolve({
+        name: f.name,
+        mimeType: f.type || 'application/octet-stream',
+        base64: String(r.result).split(',')[1] ?? '',
+      });
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(f);
+  });
 }
 
 export async function send(o: Outgoing) {
@@ -280,9 +329,25 @@ export async function send(o: Outgoing) {
     o.inReplyTo ? `In-Reply-To: ${o.inReplyTo}` : '',
     o.references ? `References: ${o.references}` : '',
     'MIME-Version: 1.0',
-    'Content-Type: text/html; charset=UTF-8',
-    'Content-Transfer-Encoding: 8bit',
   ].filter(Boolean);
-  const raw = base64url(`${lines.join('\r\n')}\r\n\r\n${o.html}`);
+  let mime: string;
+  if (!o.files?.length) {
+    lines.push('Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: 8bit');
+    mime = `${lines.join('\r\n')}\r\n\r\n${o.html}`;
+  } else {
+    const b = `=_part_${Math.random().toString(36).slice(2)}`;
+    lines.push(`Content-Type: multipart/mixed; boundary="${b}"`);
+    const parts = [
+      `--${b}\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n${o.html}`,
+      ...o.files.map(
+        (f) =>
+          `--${b}\r\nContent-Type: ${f.mimeType}; name="${encodeHeader(f.name)}"\r\n` +
+          `Content-Disposition: attachment; filename="${encodeHeader(f.name)}"\r\n` +
+          `Content-Transfer-Encoding: base64\r\n\r\n${f.base64.replace(/(.{76})/g, '$1\r\n')}`,
+      ),
+    ];
+    mime = `${lines.join('\r\n')}\r\n\r\n${parts.join('\r\n')}\r\n--${b}--`;
+  }
+  const raw = base64url(mime);
   return gmail('/messages/send', { method: 'POST', body: JSON.stringify({ raw, threadId: o.threadId }) });
 }

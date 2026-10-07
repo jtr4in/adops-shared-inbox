@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { GROUP_ADDRESS, TEAM, teammateName } from '../config';
 import { addresses, displayName, type ThreadSummary } from '../gmail';
 import { categoryOf, type Triage } from '../triage';
@@ -34,11 +35,22 @@ function groupChip(t: ThreadSummary) {
 export function ThreadList(p: Props) {
   const { threads, triage, selected, onSelect, checked, onChecked, onBulk } = p;
   const allChecked = threads.length > 0 && threads.every((t) => checked.has(t.threadId));
-  const toggle = (id: string, e: React.MouseEvent) => {
+  const lastClicked = useRef<number | null>(null);
+  // Click toggles one; shift+click selects the whole range since the last click.
+  const toggle = (idx: number, e: React.MouseEvent) => {
     e.stopPropagation();
     const n = new Set(checked);
-    if (n.has(id)) n.delete(id);
-    else n.add(id);
+    const id = threads[idx].threadId;
+    const on = !n.has(id);
+    if (e.shiftKey && lastClicked.current !== null) {
+      const [a, b] = [lastClicked.current, idx].sort((x, y) => x - y);
+      for (const t of threads.slice(a, b + 1)) {
+        if (on) n.add(t.threadId);
+        else n.delete(t.threadId);
+      }
+    } else if (on) n.add(id);
+    else n.delete(id);
+    lastClicked.current = idx;
     onChecked(n);
   };
 
@@ -73,7 +85,7 @@ export function ThreadList(p: Props) {
       </div>
       {!threads.length && !p.loading && <div className="center muted">Nothing here</div>}
       <ul>
-        {threads.map((t) => {
+        {threads.map((t, i) => {
           const tr = triage[t.key];
           const chip = groupChip(t);
           return (
@@ -85,7 +97,7 @@ export function ThreadList(p: Props) {
               <input
                 type="checkbox"
                 checked={checked.has(t.threadId)}
-                onClick={(e) => toggle(t.threadId, e)}
+                onClick={(e) => toggle(i, e)}
                 readOnly
               />
               <div className="row-main">
