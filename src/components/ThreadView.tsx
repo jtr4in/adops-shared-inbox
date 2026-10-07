@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CATEGORIES, TEAM, teammateName } from '../config';
-import { chainPeople, displayName, downloadAttachment, getThread, markRead, type Message, type ThreadSummary } from '../gmail';
+import { setArchived, chainPeople, displayName, downloadAttachment, getThread, markRead, type Message, type ThreadSummary } from '../gmail';
 import { addNote, categoryOf, updateTriage, useNotes, type Triage } from '../triage';
 import { formatDate } from './ThreadList';
 import { Composer, kb, type ReplyMode } from './Composer';
@@ -37,13 +37,19 @@ export function ThreadView({ summary, triage, me }: Props) {
   const notesRef = useRef<HTMLInputElement>(null);
 
   const set = (patch: Partial<Triage>) => updateTriage(summary.key, summary.subject, patch);
+  // Done also archives the thread in your own Gmail; Reopen moves it back to your inbox.
+  const toggleDone = () => {
+    const done = !triage?.done;
+    set({ done });
+    setArchived(summary.threadId, done).catch((e) => setError(String(e)));
+  };
 
   // Keyboard shortcuts from the inbox.
   useEffect(() => {
     const on = (e: Event) => {
       const a = (e as CustomEvent<string>).detail;
       if (a === 'reply' || a === 'replyAll' || a === 'forward') setReply(a);
-      if (a === 'done') set({ done: !triage?.done });
+      if (a === 'done') toggleDone();
       if (a === 'flag') set({ flagged: !triage?.flagged });
       if (a === 'assignMe') set({ assignee: me });
       if (a === 'note') notesRef.current?.focus();
@@ -94,7 +100,7 @@ export function ThreadView({ summary, triage, me }: Props) {
             <button className="icon-btn" title="Private note" onClick={() => notesRef.current?.focus()}>
               🔒
             </button>
-            <button className={triage?.done ? 'on' : 'done-btn'} onClick={() => set({ done: !triage?.done })}>
+            <button className={triage?.done ? 'on' : 'done-btn'} onClick={toggleDone}>
               {triage?.done ? 'Reopen' : '✓ Done'}
             </button>
           </div>

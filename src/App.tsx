@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { AUTH_EXPIRED, AUTH_RENEWED, auth, getGmailToken, signIn, signOut, tokenExpiresAt } from './firebase';
 import { CATEGORIES, DATE_RANGES, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, type Mailbox } from './config';
-import { AuthExpiredError, displayName, listThreads, type ThreadSummary } from './gmail';
+import { AuthExpiredError, displayName, listThreads, setArchived, type ThreadSummary } from './gmail';
 import { categoryOf, updateTriage, useTriage, type Triage } from './triage';
 import { Sidebar, viewId, type View } from './components/Sidebar';
 import { ThreadList } from './components/ThreadList';
@@ -250,7 +250,10 @@ function Inbox({ user }: { user: User }) {
   }, [threads, triage, me]);
 
   const bulk = (patch: Partial<Triage>) => {
-    for (const t of threads.filter((x) => checked.has(x.threadId))) updateTriage(t.key, t.subject, patch);
+    for (const t of threads.filter((x) => checked.has(x.threadId))) {
+      updateTriage(t.key, t.subject, patch);
+      if (patch.done) setArchived(t.threadId, true).catch((e) => setError(String(e)));
+    }
     setChecked(new Set());
   };
 

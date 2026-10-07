@@ -251,6 +251,14 @@ export async function markRead(messageIds: string[]) {
   summaryCache.clear();
 }
 
+// Archive (remove from Inbox) or un-archive a thread in the signed-in person's own Gmail.
+export async function setArchived(threadId: string, archived: boolean) {
+  await gmail(`/threads/${threadId}/modify`, {
+    method: 'POST',
+    body: JSON.stringify(archived ? { removeLabelIds: ['INBOX'] } : { addLabelIds: ['INBOX'] }),
+  });
+}
+
 export interface SendAs {
   sendAsEmail: string;
   displayName: string;
