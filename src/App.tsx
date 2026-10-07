@@ -102,6 +102,7 @@ function Inbox({ user }: { user: User }) {
   const [expired, setExpired] = useState(!getGmailToken());
   const [lastSync, setLastSync] = useState<number | null>(null);
   const [view, setView] = useState<View>({ kind: 'all' });
+  const [navOpen, setNavOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -335,7 +336,7 @@ function Inbox({ user }: { user: User }) {
         n: () => act('note'),
         c: () => setDialog('compose'),
         s: mbSearch,
-        '/': () => document.querySelector<HTMLInputElement>('.topbar input')?.focus(),
+        '/': () => document.querySelector<HTMLInputElement>('.list-search input')?.focus(),
         '?': () => setDialog('keys'),
         Escape: () => setDialog(null),
       };
@@ -390,6 +391,7 @@ function Inbox({ user }: { user: User }) {
         </pre>
       )}
       <header className="topbar">
+        <button className="nav-btn" onClick={() => setNavOpen(!navOpen)} title="Folders">☰</button>
         <div className="logo">AO</div>
         <div>
           <strong>AdOps Shared Inbox</strong>
@@ -456,7 +458,12 @@ function Inbox({ user }: { user: User }) {
         )
       )}
       {error && <div className="error banner">{error}</div>}
-      <div className="panes" style={{ gridTemplateColumns: `230px ${listW}px 6px 1fr` }}>
+      <div
+        className={`panes ${current ? "has-thread" : ""} ${navOpen ? "nav-open" : ""}`}
+        onClickCapture={(e) => {
+          if (navOpen && (e.target as HTMLElement).closest(".sidebar button, .sidebar li, .sidebar a")) setNavOpen(false);
+        }}
+        style={{ gridTemplateColumns: `230px ${listW}px 6px 1fr` }}>
         <Sidebar
           mailbox={mailbox}
           onMailbox={(m) => {
@@ -492,6 +499,8 @@ function Inbox({ user }: { user: User }) {
           }}
         />
         {current ? (
+          <div className="reader">
+          <button className="back-btn" onClick={() => setSelected(null)}>← Back</button>
           <ThreadView
             key={current.threadId}
             summary={current}
@@ -500,6 +509,7 @@ function Inbox({ user }: { user: User }) {
             others={presence.filter((p) => p.threadKey === current.key)}
             onComposing={setComposing}
           />
+          </div>
         ) : (
           <div className="center muted">Select an email</div>
         )}

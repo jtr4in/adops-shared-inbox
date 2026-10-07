@@ -163,3 +163,35 @@ body.dragging iframe { pointer-events: none; }
 .row .date { flex: none; font-size: 12px; }
 .row .chip { flex: none; font-size: 11px; padding: 0 6px; }
 .row.unread .line .snippet { font-weight: 400; }
+/* Phones: one screen at a time. Folders slide in from ☰, emails open full screen with Back. */
+.nav-btn, .back-btn { display: none; }
+.reader { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.reader > .thread { flex: 1; min-height: 0; }
+@media (max-width: 800px) {
+  .nav-btn { display: inline-block; font-size: 18px; padding: 4px 10px; }
+  .back-btn { display: block; text-align: left; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: 10px 14px; background: var(--panel); font-weight: 600; }
+  .topbar { padding: 6px 8px; gap: 6px; flex-wrap: nowrap; }
+  .topbar > div:nth-child(3), .topbar .sync { display: none; }
+  .panes { display: block !important; position: relative; overflow: hidden; }
+  .panes > * { height: 100%; }
+  .panes .splitter { display: none; }
+  .panes .sidebar { position: absolute; inset: 0 auto 0 0; width: 80%; max-width: 300px; z-index: 20; background: var(--panel); transform: translateX(-100%); transition: transform .2s; box-shadow: 2px 0 12px rgba(0,0,0,.15); }
+  .panes.nav-open .sidebar { transform: none; }
+  .panes .list { width: 100%; overflow-y: auto; }
+  .panes.has-thread .list, .panes:not(.has-thread) > .center { display: none; }
+  .panes .reader { position: absolute; inset: 0; background: var(--bg, #fff); z-index: 10; }
+  .row { padding: 10px 12px; }
+  .row .from { flex-basis: 110px; }
+  .row .chip:not(.assigned) { display: none; }
+  .thread-head { padding: 10px 12px; }
+  .thread-head h2 { font-size: 16px; }
+  .actions { gap: 6px; }
+  .actions .spacer { display: none; }
+  .actions .group { flex-wrap: wrap; }
+  .thread-body { padding: 8px; }
+  .message header .muted { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .composer .field { flex-direction: column; align-items: stretch; }
+  .toolbar { flex-wrap: wrap; }
+  .modal { width: 95vw !important; max-width: 95vw; }
+  input, select, textarea, .editor { font-size: 16px; } /* stops iPhone zooming in */
+}
