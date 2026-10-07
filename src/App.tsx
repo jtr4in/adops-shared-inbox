@@ -393,7 +393,7 @@ function Inbox({ user }: { user: User }) {
           onMouseDown={(e) => e.preventDefault()}
           onClick={mbSearch}
         >
-          🔍 MB Search
+          🔍 MB
         </button>
         <span className={`sync ${expired ? 'off' : ''}`}>
           ● {expired ? 'Paused' : lastSync ? `Synced ${new Date(lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Syncing…'}
