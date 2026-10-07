@@ -27,5 +27,31 @@ export const TEAM: Teammate[] = (env.VITE_TEAM || '')
 export const teammateName = (email?: string | null) =>
   TEAM.find((t) => t.email === email)?.name ?? email ?? '';
 
-// Gmail search that finds mail sent to the group in each person's own mailbox.
-export const GROUP_QUERY = `(list:${GROUP_ADDRESS} OR to:${GROUP_ADDRESS} OR cc:${GROUP_ADDRESS}) newer_than:60d`;
+const G = GROUP_ADDRESS;
+// Gmail's {a b c} means "a OR b OR c".
+const TO_GROUP = `{list:${G} to:${G} cc:${G}}`;
+const WINDOW = 'newer_than:90d';
+
+export type Mailbox = 'team' | 'me' | 'all' | 'sent';
+
+export const MAILBOXES: { id: Mailbox; label: string; query: string }[] = [
+  { id: 'team', label: `Team (${G.split('@')[0]}@)`, query: `${TO_GROUP} ${WINDOW}` },
+  { id: 'me', label: 'Just to me', query: `in:inbox -${TO_GROUP} ${WINDOW}` },
+  { id: 'all', label: 'All combined', query: `{${TO_GROUP.slice(1, -1)} in:inbox} ${WINDOW}` },
+  { id: 'sent', label: 'Sent', query: `in:sent ${WINDOW}` },
+];
+
+// Smart folders: first match wins, checked against subject + preview.
+// Anyone can override a thread's folder from the thread header.
+export const CATEGORIES: { name: string; match: RegExp }[] = [
+  { name: 'Contracts & Amendments', match: /contract|amend|agreement|terms|insertion order|\bIO\b|docusign|signed/i },
+  { name: 'Billing & Invoices', match: /invoice|billing|payment|remit|statement|accounting|paid|payout/i },
+  { name: 'Intros & Campaign Setup', match: /intro|welcome|onboard|set ?up|launch|pixel|postback|tracking|new campaign|creative|promo/i },
+  { name: 'Account & Status Updates', match: /status|update|pause|resume|live|account|notification|cap\b|budget|change|report/i },
+  { name: 'General Inquiries', match: /.*/ },
+];
+
+export function categorize(subject: string, snippet: string): string {
+  const text = `${subject} ${snippet}`;
+  return CATEGORIES.find((c) => c.match.test(text))!.name;
+}

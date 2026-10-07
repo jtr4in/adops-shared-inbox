@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { addresses, listSendAs, send, type Message, type SendAs } from '../gmail';
-import { useSignature } from '../triage';
+import { saveTemplate, useSignature, useTemplates } from '../triage';
 
-export type ReplyMode = 'reply' | 'replyAll' | 'forward';
+export type ReplyMode = 'reply' | 'replyAll' | 'forward' | 'new';
 
 interface Props {
   mode: ReplyMode;
-  messages: Message[];
-  subject: string;
+  messages?: Message[];
+  subject?: string;
   me: string;
   onClose: () => void;
   onSent: () => void;
@@ -15,8 +15,8 @@ interface Props {
 
 const uniq = (xs: string[]) => [...new Set(xs)];
 
-function recipients(mode: ReplyMode, last: Message, mine: string[]) {
-  if (mode === 'forward') return { to: [], cc: [] };
+function recipients(mode: ReplyMode, last: Message | undefined, mine: string[]) {
+  if (!last || mode === 'forward' || mode === 'new') return { to: [], cc: [] };
   const fromMe = addresses(last.from).some((a) => mine.includes(a));
   // Replying to our own last message goes back to whoever we sent it to.
   const primary = fromMe ? addresses(last.to) : addresses(last.from);
@@ -27,25 +27,53 @@ function recipients(mode: ReplyMode, last: Message, mine: string[]) {
   return { to, cc };
 }
 
-function quote(m: Message) {
+function quote(m: Message, forward: boolean) {
   return `<br><div style="border-top:1px solid #ccc;padding-top:8px;margin-top:16px">
-<b>From:</b> ${esc(m.from)}<br><b>Sent:</b> ${new Date(m.date).toLocaleString()}<br>
+${forward ? '---------- Forwarded message ---------<br>' : ''}<b>From:</b> ${esc(m.from)}<br><b>Sent:</b> ${new Date(m.date).toLocaleString()}<br>
 <b>To:</b> ${esc(m.to)}<br>${m.cc ? `<b>Cc:</b> ${esc(m.cc)}<br>` : ''}<b>Subject:</b> ${esc(m.subject)}<br><br>
 ${m.html ?? ''}</div>`;
 }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-export function Composer({ mode, messages, subject, me, onClose, onSent }: Props) {
-  const last = messages[messages.length - 1];
+const TOOLS: { cmd: string; label: string; title: string }[] = [
+  { cmd: 'bold', label: 'B', title: 'Bold' },
+  { cmd: 'italic', label: 'I', title: 'Italic' },
+  { cmd: 'underline', label: 'U', title: 'Underline' },
+  { cmd: 'strikeThrough', label: 'S', title: 'Strikethrough' },
+  { cmd: 'insertUnorderedList', label: '•', title: 'Bullets' },
+  { cmd: 'insertOrderedList', label: '1.', title: 'Numbering' },
+  { cmd: 'outdent', label: '⇤', title: 'Decrease indent' },
+  { cmd: 'indent', label: '⇥', title: 'Increase indent' },
+  { cmd: 'createLink', label: '🔗', title: 'Link' },
+  { cmd: 'removeFormat', label: '⌫', title: 'Clear formatting' },
+  { cmd: 'undo', label: '↶', title: 'Undo' },
+  { cmd: 'redo', label: '↷', title: 'Redo' },
+];
+
+const TITLES: Record<ReplyMode, string> = {
+  reply: 'Reply',
+  replyAll: 'Reply all',
+  forward: 'Forward',
+  new: 'New email',
+};
+
+export function Composer({ mode, messages, subject = '', me, onClose, onSent }: Props) {
+  const last = messages?.[messages.length - 1];
   const [sendAs, setSendAs] = useState<SendAs[]>([]);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [cc, setCc] = useState('');
+  const [subj, setSubj] = useState(() => {
+    if (mode === 'new') return '';
+    const prefix = mode === 'forward' ? 'Fwd: ' : 'Re: ';
+    return /^(re|fwd?):/i.test(subject) && mode !== 'forward' ? subject : prefix + subject.replace(/^(re|fwd?):\s*/i, '');
+  });
   const [useSig, setUseSig] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [customSig] = useSignature(me);
+  const templates = useTemplates();
   // Your saved override wins; otherwise use the signature Gmail has for the chosen From address.
   const signature = customSig || sendAs.find((s) => s.sendAsEmail === from)?.signature || '';
   const editor = useRef<HTMLDivElement>(null);
@@ -64,8 +92,29 @@ export function Composer({ mode, messages, subject, me, onClose, onSent }: Props
     editor.current?.focus();
   }, [mode, last, me]);
 
-  const prefix = mode === 'forward' ? 'Fwd: ' : 'Re: ';
-  const fullSubject = /^(re|fwd?):/i.test(subject) ? subject : prefix + subject;
+  function exec(cmd: string) {
+    editor.current?.focus();
+    if (cmd === 'createLink') {
+      const url = prompt('Link URL');
+      if (url) document.execCommand('createLink', false, url);
+      return;
+    }
+    document.execCommand(cmd);
+  }
+
+  function insertTemplate(id: string) {
+    const t = templates.find((x) => x.id === id);
+    if (!t) return;
+    editor.current?.focus();
+    document.execCommand('insertHTML', false, t.html);
+  }
+
+  async function saveAsTemplate() {
+    const html = editor.current?.innerHTML.trim();
+    if (!html) return alert('Write something first, then save it as a template.');
+    const name = prompt('Template name');
+    if (name) await saveTemplate({ name, html });
+  }
 
   async function submit() {
     setSending(true);
@@ -73,13 +122,13 @@ export function Composer({ mode, messages, subject, me, onClose, onSent }: Props
     try {
       const sa = sendAs.find((s) => s.sendAsEmail === from);
       const body = editor.current?.innerHTML ?? '';
-      const html = `<div>${body}</div>${useSig && signature ? `<br>${signature}` : ''}${quote(last)}`;
-      const isReply = mode !== 'forward';
+      const html = `<div>${body}</div>${useSig && signature ? `<br>${signature}` : ''}${last ? quote(last, mode === 'forward') : ''}`;
+      const isReply = (mode === 'reply' || mode === 'replyAll') && last;
       await send({
         from: sa?.displayName ? `"${sa.displayName}" <${from}>` : from,
         to: addresses(to),
         cc: addresses(cc),
-        subject: fullSubject,
+        subject: subj,
         html,
         threadId: isReply ? last.threadId : undefined,
         inReplyTo: isReply ? last.messageId : undefined,
@@ -99,11 +148,20 @@ export function Composer({ mode, messages, subject, me, onClose, onSent }: Props
         <button className="primary" disabled={sending || !addresses(to).length} onClick={submit}>
           {sending ? 'Sending…' : 'Send'}
         </button>
-        <strong>{{ reply: 'Reply', replyAll: 'Reply all', forward: 'Forward' }[mode]}</strong>
+        <strong>{TITLES[mode]}</strong>
         <span className="spacer" />
-        <label>
+        <label className="small">
           <input type="checkbox" checked={useSig} onChange={(e) => setUseSig(e.target.checked)} /> Signature
         </label>
+        <select value="" onChange={(e) => (e.target.value === '+' ? saveAsTemplate() : insertTemplate(e.target.value))}>
+          <option value="">Templates…</option>
+          {templates.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+          <option value="+">＋ Save current text as template</option>
+        </select>
         <button onClick={onClose}>Discard</button>
       </div>
       <label className="field">
@@ -118,13 +176,29 @@ export function Composer({ mode, messages, subject, me, onClose, onSent }: Props
       </label>
       <label className="field">
         To
-        <input value={to} onChange={(e) => setTo(e.target.value)} />
+        <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="name@example.com, …" />
       </label>
       <label className="field">
         Cc
         <input value={cc} onChange={(e) => setCc(e.target.value)} />
       </label>
-      <div className="muted small">Subject: {fullSubject}</div>
+      <label className="field">
+        Subject
+        <input value={subj} onChange={(e) => setSubj(e.target.value)} />
+      </label>
+      <div className="toolbar">
+        {TOOLS.map((t) => (
+          <button
+            key={t.cmd}
+            title={t.title}
+            className={`tool tool-${t.cmd}`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => exec(t.cmd)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
       <div ref={editor} className="editor" contentEditable suppressContentEditableWarning />
       {useSig && signature && <div className="sig-preview" dangerouslySetInnerHTML={{ __html: signature }} />}
       {error && <div className="error">{error}</div>}

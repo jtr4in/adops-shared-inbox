@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { TEAM, teammateName } from '../config';
-import { displayName, getThread, type Message, type ThreadSummary } from '../gmail';
-import { addNote, updateTriage, useNotes, type Triage } from '../triage';
+import { useEffect, useRef, useState } from 'react';
+import { CATEGORIES, TEAM, teammateName } from '../config';
+import { chainPeople, displayName, getThread, markRead, type Message, type ThreadSummary } from '../gmail';
+import { addNote, categoryOf, updateTriage, useNotes, type Triage } from '../triage';
 import { formatDate } from './ThreadList';
 import { Composer, type ReplyMode } from './Composer';
 
@@ -24,12 +24,17 @@ export function ThreadView({ summary, triage, me }: Props) {
       .then((m) => {
         setMessages(m);
         setOpen(new Set([m[m.length - 1].id]));
+        markRead(m.filter((x) => x.unread).map((x) => x.id)).catch(() => {});
       })
       .catch((e) => setError(String(e)));
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [summary.threadId]);
+    // Reload when a new message lands in this thread during auto-sync.
+  }, [summary.threadId, summary.count]);
+  const [showPeople, setShowPeople] = useState(false);
+  const people = messages ? chainPeople(messages) : [];
+  const notesRef = useRef<HTMLInputElement>(null);
 
   const set = (patch: Partial<Triage>) => updateTriage(summary.key, summary.subject, patch);
   const toggle = (id: string) =>
@@ -61,9 +66,40 @@ export function ThreadView({ summary, triage, me }: Props) {
             ⚑ {triage?.flagged ? 'Flagged' : 'Flag'}
           </button>
           <button className={triage?.done ? 'on' : ''} onClick={() => set({ done: !triage?.done })}>
-            {triage?.done ? 'Reopen' : 'Mark done'}
+            {triage?.done ? 'Reopen' : '✓ Mark done'}
           </button>
+          <button className="note-btn" onClick={() => notesRef.current?.focus()}>
+            🔒 Private note
+          </button>
+          <select
+            value={categoryOf(summary, triage)}
+            onChange={(e) => set({ category: e.target.value })}
+            title="Smart folder"
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c.name}>{c.name}</option>
+            ))}
+          </select>
         </div>
+        {messages && (
+          <div className="chain">
+            <button className="chip people" onClick={() => setShowPeople(!showPeople)}>
+              👥 {people.length} in chain {showPeople ? '▴' : '▾'}
+            </button>
+            <span className="muted small">
+              {messages.length} message{messages.length > 1 ? 's' : ''}
+            </span>
+            {showPeople && (
+              <div className="people-list">
+                {people.map((p) => (
+                  <span key={p} className="person">
+                    {p}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {triage?.updatedBy && (
           <div className="muted small">
             Last change by {teammateName(triage.updatedBy)}
@@ -97,6 +133,7 @@ export function ThreadView({ summary, triage, me }: Props) {
 
         {reply && messages && (
           <Composer
+            key={reply}
             mode={reply}
             messages={messages}
             subject={summary.subject}
@@ -126,7 +163,7 @@ export function ThreadView({ summary, triage, me }: Props) {
               setNote('');
             }}
           >
-            <input placeholder="Add a note for the team…" value={note} onChange={(e) => setNote(e.target.value)} />
+            <input ref={notesRef} placeholder="Add a private note for the team…" value={note} onChange={(e) => setNote(e.target.value)} />
           </form>
         </div>
       </div>

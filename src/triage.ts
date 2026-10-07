@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -11,6 +12,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { categorize } from './config';
 
 // Shared triage state for one email thread, keyed by its first Message-ID so
 // Jason's and Riley's mailboxes land on the same document.
@@ -18,6 +20,7 @@ export interface Triage {
   assignee?: string | null;
   flagged?: boolean;
   done?: boolean;
+  category?: string; // manual smart-folder override
   subject?: string;
   updatedBy?: string;
   updatedAt?: Timestamp;
@@ -80,3 +83,35 @@ export function useSignature(email: string | null | undefined): [string, (html: 
   const save = (html: string) => setDoc(doc(db, 'users', email!), { signature: html }, { merge: true });
   return [sig, save];
 }
+
+// Shared reply templates everyone on the team can use.
+export interface Template {
+  id: string;
+  name: string;
+  html: string;
+  createdBy?: string;
+}
+
+export function useTemplates(): Template[] {
+  const [list, setList] = useState<Template[]>([]);
+  useEffect(
+    () =>
+      onSnapshot(query(collection(db, 'templates'), orderBy('name')), (snap) =>
+        setList(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Template, 'id'>) }))),
+      ),
+    [],
+  );
+  return list;
+}
+
+export function saveTemplate(t: { id?: string; name: string; html: string }) {
+  const data = { name: t.name, html: t.html, createdBy: auth.currentUser?.email ?? '' };
+  return t.id ? setDoc(doc(db, 'templates', t.id), data, { merge: true }) : addDoc(collection(db, 'templates'), data);
+}
+
+export function deleteTemplate(id: string) {
+  return deleteDoc(doc(db, 'templates', id));
+}
+
+export const categoryOf = (t: { subject: string; snippet: string }, tr: Triage | undefined) =>
+  tr?.category || categorize(t.subject, t.snippet);

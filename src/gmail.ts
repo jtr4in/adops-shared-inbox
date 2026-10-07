@@ -1,22 +1,32 @@
-import { getGmailToken, signIn } from './firebase';
+import { getGmailToken, markTokenExpired } from './firebase';
+
+export class AuthExpiredError extends Error {
+  constructor() {
+    super('Your Google session expired. Click Reconnect to keep syncing.');
+  }
+}
 
 const API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
-async function gmail<T>(path: string, init?: RequestInit, retried = false, attempt = 0): Promise<T> {
-  const token = getGmailToken() ?? (await signIn());
+async function gmail<T>(path: string, init?: RequestInit, attempt = 0): Promise<T> {
+  const token = getGmailToken();
+  if (!token) {
+    markTokenExpired();
+    throw new AuthExpiredError();
+  }
   const res = await fetch(`${API}${path}`, {
     ...init,
     headers: { ...init?.headers, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
   });
-  if (res.status === 401 && !retried) {
-    await signIn();
-    return gmail(path, init, true);
+  if (res.status === 401) {
+    markTokenExpired();
+    throw new AuthExpiredError();
   }
   if ((res.status === 403 || res.status === 429) && attempt < 4) {
     const body = await res.clone().text();
     if (/rateLimitExceeded|userRateLimitExceeded|Quota exceeded/i.test(body)) {
       await new Promise((r) => setTimeout(r, 1500 * 2 ** attempt));
-      return gmail(path, init, retried, attempt + 1);
+      return gmail(path, init, attempt + 1);
     }
   }
   if (!res.ok) throw new Error(`Gmail ${res.status}: ${await res.text()}`);
@@ -70,6 +80,8 @@ export interface ThreadSummary {
   date: number;
   count: number;
   unread: boolean;
+  sent: boolean; // last message was sent from this mailbox
+  people: number; // distinct addresses across the chain
 }
 
 const header = (p: Part, name: string) =>
@@ -164,7 +176,20 @@ function summarize(t: { messages: RawMessage[] }): ThreadSummary {
     date: last.date,
     count: msgs.length,
     unread: msgs.some((m) => m.unread),
+    sent: t.messages[t.messages.length - 1].labelIds?.includes('SENT') ?? false,
+    people: chainPeople(msgs).length,
   };
+}
+
+export function chainPeople(msgs: Pick<Message, 'from' | 'to' | 'cc'>[]): string[] {
+  const out = new Map<string, string>();
+  for (const m of msgs) {
+    for (const raw of [m.from, m.to, m.cc].join(',').split(',')) {
+      const email = addresses(raw)[0];
+      if (email && !out.has(email)) out.set(email, raw.trim());
+    }
+  }
+  return [...out.values()];
 }
 
 export async function listThreads(
@@ -189,6 +214,15 @@ export async function listThreads(
 export async function getThread(threadId: string): Promise<Message[]> {
   const t = await gmail<{ messages: RawMessage[] }>(`/threads/${threadId}?format=full`);
   return t.messages.map((m) => parse(m, true));
+}
+
+export async function markRead(messageIds: string[]) {
+  if (!messageIds.length) return;
+  await gmail('/messages/batchModify', {
+    method: 'POST',
+    body: JSON.stringify({ ids: messageIds, removeLabelIds: ['UNREAD'] }),
+  });
+  summaryCache.clear();
 }
 
 export interface SendAs {
