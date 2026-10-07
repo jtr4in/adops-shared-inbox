@@ -380,6 +380,15 @@ function Inbox({ user }: { user: User }) {
 
   return (
     <div className="app">
+      {/* Troubleshooting: open the app with ?debug in the address to list every email loaded. */}
+      {location.search.includes('debug') && (
+        <pre style={{ position: 'fixed', bottom: 0, right: 0, zIndex: 99, maxHeight: '50vh', overflow: 'auto', background: '#fff', border: '1px solid #ccc', padding: 8, fontSize: 11 }}>
+          {`query: ${query}\nloaded: ${threads.length}\n` +
+            threads
+              .map((t) => `${new Date(t.date).toLocaleString()} | ${triage[t.key]?.done ? 'DONE' : 'open'} | ${t.sent ? 'sent' : 'in'} | ${t.subject.slice(0, 50)}`)
+              .join('\n')}
+        </pre>
+      )}
       <header className="topbar">
         <div className="logo">AO</div>
         <div>
