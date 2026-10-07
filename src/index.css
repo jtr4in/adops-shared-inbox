@@ -149,3 +149,17 @@ body.dragging iframe { pointer-events: none; }
 .presence-bar.hot { background: #fdecec; color: var(--err); font-weight: 600; }
 .chip.live { color: var(--accent); border-color: #c7d6fb; }
 .chip.live.hot { color: var(--err); border-color: #f5b5b5; background: #fdecec; }
+/* Gmail-style one-line rows */
+.list-search { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.list-search .searchbox { width: 100%; }
+.list-search .searchbox form { flex: 1; display: flex; }
+.list-search .searchbox input { width: 100%; }
+.row { align-items: center; padding: 6px 12px; gap: 6px; font-size: 13px; }
+.row > input { margin-top: 0; }
+.row .from { flex: 0 0 150px; min-width: 0; }
+.row .line { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .line .subject, .row .line .snippet { display: inline; margin: 0; }
+.row .line .snippet { font-size: 13px; }
+.row .date { flex: none; font-size: 12px; }
+.row .chip { flex: none; font-size: 11px; padding: 0 6px; }
+.row.unread .line .snippet { font-weight: 400; }

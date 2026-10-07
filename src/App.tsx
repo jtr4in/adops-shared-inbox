@@ -289,7 +289,7 @@ function Inbox({ user }: { user: User }) {
   const presence = usePresence();
 
   // Draggable divider between the email list and the reading pane.
-  const [listW, setListW] = useState(() => Number(localStorage.getItem('listW')) || 400);
+  const [listW, setListW] = useState(() => Number(localStorage.getItem('listW')) || 560);
   const startDrag = (e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
@@ -351,15 +351,7 @@ function Inbox({ user }: { user: User }) {
   const minutesLeft = Math.round((tokenExpiresAt() - now) / 60_000);
   const mailboxLabel = MAILBOXES.find((m) => m.id === mailbox)!.label;
 
-  return (
-    <div className="app">
-      <header className="topbar">
-        <div className="logo">AO</div>
-        <div>
-          <strong>AdOps Shared Inbox</strong>
-          <div className="muted small">{TEAM.map((t) => t.name).join(' · ')}</div>
-        </div>
-        <span className="spacer" />
+  const searchBox = (
         <div className="searchbox">
           <select
             value={days}
@@ -384,6 +376,17 @@ function Inbox({ user }: { user: User }) {
             <input placeholder="Search mail (Gmail syntax)" value={search} onChange={(e) => setSearch(e.target.value)} />
           </form>
         </div>
+  );
+
+  return (
+    <div className="app">
+      <header className="topbar">
+        <div className="logo">AO</div>
+        <div>
+          <strong>AdOps Shared Inbox</strong>
+          <div className="muted small">{TEAM.map((t) => t.name).join(' · ')}</div>
+        </div>
+        <span className="spacer" />
         <button
           className="mb-search"
           title="Highlight text anywhere (even inside an email), then click to search MaxBounty admin"
@@ -457,6 +460,7 @@ function Inbox({ user }: { user: User }) {
           onCompose={() => setDialog('compose')}
         />
         <ThreadList
+            top={searchBox}
           threads={visible}
           triage={triage}
           selected={selected}
@@ -475,7 +479,7 @@ function Inbox({ user }: { user: User }) {
           onMouseDown={startDrag}
           onDoubleClick={() => {
             setListW(400);
-            localStorage.setItem('listW', '400');
+            localStorage.setItem('listW', '560');
           }}
         />
         {current ? (

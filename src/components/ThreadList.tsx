@@ -15,6 +15,7 @@ interface Props {
   loading?: boolean;
   caption: string;
   presence: Presence[];
+  top?: React.ReactNode;
 }
 
 export function formatDate(ms: number) {
@@ -57,6 +58,7 @@ export function ThreadList(p: Props) {
 
   return (
     <div className="list">
+      {p.top && <div className="list-search">{p.top}</div>}
       <div className="list-head">
         <label>
           <input
@@ -114,37 +116,23 @@ export function ThreadList(p: Props) {
                 onClick={(e) => toggle(i, e)}
                 readOnly
               />
-              <div className="row-main">
-                <div className="row-top">
-                  <span className="from">{t.sent ? `To: ${displayName(t.to)}` : displayName(t.from)}</span>
-                  {p.presence
-                    .filter((x) => x.threadKey === t.key)
-                    .map((x) => (
-                      <span key={x.email} className={`chip live ${x.composing ? 'hot' : ''}`}>
-                        {x.composing ? '✍' : '👀'} {teammateName(x.email).split(' ')[0]}
-                      </span>
-                    ))}
-                  {t.people > 2 && <span className="chip people">👥 {t.people} in chain</span>}
-                  <span className="date">{formatDate(t.date)}</span>
-                </div>
-                <div className="subject">
-                  {tr?.flagged && <span className="flag">⚑ </span>}
-                  {t.subject}
-                  {t.count > 1 && <span className="muted small"> ({t.count})</span>}
-                </div>
-                <div className="snippet">{t.snippet}</div>
-                <div className="tags">
-                  {t.sent && <span className="chip sent">Sent</span>}
-                  {chip && <span className="chip">{chip}</span>}
-                  {tr?.assignee ? (
-                    <span className="chip assigned">{teammateName(tr.assignee)}</span>
-                  ) : (
-                    <span className="chip">Unassigned</span>
-                  )}
-                  {tr?.done && <span className="chip done">Done</span>}
-                  <span className="cat">{short(categoryOf(t, tr))}</span>
-                </div>
-              </div>
+              <span className="from">{t.sent ? `To: ${displayName(t.to)}` : displayName(t.from)}{t.count > 1 && <span className="muted small"> {t.count}</span>}</span>
+              {tr?.flagged && <span className="flag">⚑</span>}
+              {p.presence
+                .filter((x) => x.threadKey === t.key)
+                .map((x) => (
+                  <span key={x.email} className={`chip live ${x.composing ? 'hot' : ''}`}>
+                    {x.composing ? '✍' : '👀'} {teammateName(x.email).split(' ')[0]}
+                  </span>
+                ))}
+              {tr?.assignee && <span className="chip assigned">{teammateName(tr.assignee).split(' ')[0]}</span>}
+              {tr?.done && <span className="chip done">Done</span>}
+              {t.sent && <span className="chip sent">Sent</span>}
+              <span className="line" title={`${chip ?? ''} · ${short(categoryOf(t, tr))} · ${t.people} in chain`}>
+                <span className="subject">{t.subject}</span>
+                <span className="snippet"> - {t.snippet}</span>
+              </span>
+              <span className="date">{formatDate(t.date)}</span>
             </li>
           );
         })}
