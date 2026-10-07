@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Only the team can read or change shared triage state. Keep this list in
+    // sync with VITE_TEAM in .env.
+    function isTeam() {
+      return request.auth != null && request.auth.token.email_verified
+        && request.auth.token.email.lower() in [
+          'jason.petrella@mrge.com',
+          'riley-miller.davis@mrge.com'
+        ];
+    }
+    match /threads/{key} {
+      allow read, write: if isTeam();
+      match /notes/{noteId} {
+        allow read, create: if isTeam();
+        allow update, delete: if isTeam() && resource.data.author == request.auth.token.email;
+      }
+    }
+    match /users/{email} {
+      allow read: if isTeam();
+      allow write: if isTeam() && email == request.auth.token.email.lower();
+    }
+  }
+}
