@@ -160,6 +160,22 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
       <div className="thread-body">
         {error && <div className="error">{error}</div>}
         {!messages && !error && <div className="muted">Loading…</div>}
+        {reply && messages && (
+          <Composer
+            key={reply}
+            mode={reply}
+            messages={messages}
+            subject={summary.subject}
+            me={me}
+            onClose={() => setReply(null)}
+            othersReplying={replying.map((o) => teammateName(o.email))}
+            onSent={() => {
+              setReply(null);
+              load();
+            }}
+          />
+        )}
+
         {messages?.map((m) => (
           <article key={m.id} className="message">
             <header onClick={() => toggle(m.id)}>
@@ -185,22 +201,6 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
             )}
           </article>
         ))}
-
-        {reply && messages && (
-          <Composer
-            key={reply}
-            mode={reply}
-            messages={messages}
-            subject={summary.subject}
-            me={me}
-            onClose={() => setReply(null)}
-            othersReplying={replying.map((o) => teammateName(o.email))}
-            onSent={() => {
-              setReply(null);
-              load();
-            }}
-          />
-        )}
 
         <div className="notes">
           <div className="section">Team notes (only visible here, never emailed)</div>
