@@ -197,6 +197,16 @@ function Inbox({ user }: { user: User }) {
     }
   }, [threads, triage]);
 
+  // A new reply on a Done email reopens it, so it can't hide from the team.
+  useEffect(() => {
+    for (const t of threads) {
+      const tr = triage[t.key];
+      if (tr?.done && !t.sent && tr.updatedAt && t.date > tr.updatedAt.toMillis()) {
+        updateTriage(t.key, t.subject, { done: false });
+      }
+    }
+  }, [threads, triage]);
+
   // Unread count in the browser tab title.
   useEffect(() => {
     const n = threads.filter((t) => t.unread && !triage[t.key]?.done).length;
@@ -253,8 +263,9 @@ function Inbox({ user }: { user: User }) {
   const reconnect = () => signIn().catch((e) => setError(String(e?.message ?? e)));
 
   const visible = useMemo(
-    () => threads.filter((t) => matches(view, t, triage[t.key], me)),
-    [threads, triage, view, me],
+    // When searching, show Done emails too so a search always finds them.
+    () => threads.filter((t) => (search && view.kind === 'all') || matches(view, t, triage[t.key], me)),
+    [threads, triage, view, me, search],
   );
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
