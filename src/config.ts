@@ -42,9 +42,9 @@ const TO_GROUP = `{${GROUP_ADDRESSES.map((g) => `list:${g} to:${g} cc:${g} from:
 export type Mailbox = 'team' | 'me' | 'all' | 'sent';
 
 export const MAILBOXES: { id: Mailbox; label: string; query: string }[] = [
+  { id: 'all', label: 'All combined', query: `{${TO_GROUP.slice(1, -1)} in:inbox}` },
   { id: 'team', label: `Team (${G.split('@')[0]}@)`, query: TO_GROUP },
   { id: 'me', label: 'Just to me', query: `in:inbox -${TO_GROUP}` },
-  { id: 'all', label: 'All combined', query: `{${TO_GROUP.slice(1, -1)} in:inbox}` },
   { id: 'sent', label: 'Sent', query: 'in:sent' },
 ];
 

@@ -94,7 +94,7 @@ const ALL_VIEWS: View[] = [
 function Inbox({ user }: { user: User }) {
   const me = user.email!.toLowerCase();
   const triage = useTriage();
-  const [mailbox, setMailbox] = useState<Mailbox>('team');
+  const [mailbox, setMailbox] = useState<Mailbox>('all');
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const [next, setNext] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
