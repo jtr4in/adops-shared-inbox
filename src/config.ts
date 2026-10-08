@@ -87,5 +87,9 @@ export function autoAssignee(to: string[], snippet = ''): string | null {
     const first = t.name.split(' ')[0].replace(/[.*+?^${}()|[\]\\]/g, '');
     return new RegExp(`^\\W*(hi|hey|hello|dear|morning|good (morning|afternoon))?\\W*${first}\\b`, 'i').test(snippet);
   });
-  return greeted.length === 1 ? greeted[0].email : null;
+  if (greeted.length !== 1) return null;
+  // "Hi Jason and Riley" greets both: leave it unassigned.
+  const opening = snippet.slice(0, 40).toLowerCase();
+  const others = TEAM.filter((t) => t !== greeted[0] && opening.includes(t.name.split(' ')[0].toLowerCase()));
+  return others.length ? null : greeted[0].email;
 }
