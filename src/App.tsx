@@ -196,7 +196,7 @@ function Inbox({ user }: { user: User }) {
     for (const t of threads) {
       const tr = triage[t.key];
       if (tr?.assignee || tr?.autoAssigned || tr?.done) continue;
-      const who = autoAssignee(t.firstTo);
+      const who = autoAssignee(t.firstTo, t.snippet);
       if (who) updateTriage(t.key, t.subject, { assignee: who, autoAssigned: true });
     }
   }, [threads, triage]);

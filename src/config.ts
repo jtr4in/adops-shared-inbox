@@ -79,7 +79,13 @@ export function categorize(subject: string, snippet: string): string {
 
 // Smart assignment: an email addressed To exactly one teammate (any of their
 // addresses) belongs to that teammate.
-export function autoAssignee(to: string[]): string | null {
+// Failing that, an email that opens with "Hi Riley" / "Hey Jason," etc. goes to that person.
+export function autoAssignee(to: string[], snippet = ''): string | null {
   const hits = TEAM.filter((t) => t.aliases.some((a) => to.includes(a)));
-  return hits.length === 1 ? hits[0].email : null;
+  if (hits.length === 1) return hits[0].email;
+  const greeted = TEAM.filter((t) => {
+    const first = t.name.split(' ')[0].replace(/[.*+?^${}()|[\]\\]/g, '');
+    return new RegExp(`^\\W*(hi|hey|hello|dear|morning|good (morning|afternoon))?\\W*${first}\\b`, 'i').test(snippet);
+  });
+  return greeted.length === 1 ? greeted[0].email : null;
 }
