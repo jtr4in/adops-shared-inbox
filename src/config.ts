@@ -8,6 +8,11 @@ export const firebaseConfig = {
 };
 
 export const GROUP_ADDRESS: string = env.VITE_GROUP_ADDRESS || 'adops@maxbounty.com';
+// Other addresses that land in the same shared inbox (comma-separated in VITE_GROUP_ALIASES).
+export const GROUP_ADDRESSES: string[] = [
+  GROUP_ADDRESS,
+  ...(env.VITE_GROUP_ALIASES ?? 'advertisers@maxbounty.com').split(',').map((a: string) => a.trim().toLowerCase()).filter(Boolean),
+];
 
 export interface Teammate {
   email: string; // the Google account they sign in with
@@ -32,7 +37,7 @@ export const teammateName = (email?: string | null) =>
 const G = GROUP_ADDRESS;
 // Gmail's {a b c} means "a OR b OR c".
 // deliveredto: also catches mail where adops@ was Bcc'd or forwarded in.
-const TO_GROUP = `{list:${G} to:${G} cc:${G} from:${G} deliveredto:${G}}`;
+const TO_GROUP = `{${GROUP_ADDRESSES.map((g) => `list:${g} to:${g} cc:${g} from:${g} deliveredto:${g}`).join(' ')}}`;
 
 export type Mailbox = 'team' | 'me' | 'all' | 'sent';
 

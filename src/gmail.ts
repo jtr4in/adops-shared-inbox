@@ -1,5 +1,5 @@
 import { getGmailToken, markTokenExpired } from './firebase';
-import { GROUP_ADDRESS } from './config';
+import { GROUP_ADDRESSES } from './config';
 
 export class AuthExpiredError extends Error {
   constructor() {
@@ -227,7 +227,7 @@ function summarize(t: { messages: RawMessage[] }): ThreadSummary {
     // our send-as addresses. Only count it as ours if it isn't from the group itself.
     sent:
       (t.messages[t.messages.length - 1].labelIds?.includes('SENT') ?? false) &&
-      !addresses(last.from).includes(GROUP_ADDRESS),
+      !addresses(last.from).some((a) => GROUP_ADDRESSES.includes(a)),
     people: chainPeople(msgs).length,
     firstTo: addresses(first.to),
   };

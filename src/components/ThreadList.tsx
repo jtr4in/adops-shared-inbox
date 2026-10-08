@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { GROUP_ADDRESS, TEAM, teammateName } from '../config';
+import { GROUP_ADDRESSES, TEAM, teammateName } from '../config';
 import { addresses, displayName, type ThreadSummary } from '../gmail';
 import { categoryOf, type Presence, type Triage } from '../triage';
 
@@ -29,8 +29,10 @@ export function formatDate(ms: number) {
 const short = (s: string) => s.replace(/ & .*/, '');
 
 function groupChip(t: ThreadSummary) {
-  if (addresses(t.to).includes(GROUP_ADDRESS)) return 'To: ' + GROUP_ADDRESS.split('@')[0] + '@';
-  if (addresses(t.cc).includes(GROUP_ADDRESS)) return 'Cc: ' + GROUP_ADDRESS.split('@')[0] + '@';
+  for (const g of GROUP_ADDRESSES) {
+    if (addresses(t.to).includes(g)) return 'To: ' + g.split('@')[0] + '@';
+    if (addresses(t.cc).includes(g)) return 'Cc: ' + g.split('@')[0] + '@';
+  }
   return null;
 }
 
