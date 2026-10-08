@@ -113,11 +113,11 @@ function Inbox({ user }: { user: User }) {
 
   const [days, setDays] = useState(() => Number(localStorage.getItem('days')) || 90);
   const query = useMemo(() => {
-    const base = mailboxQuery(mailbox, days);
+    const base = mailboxQuery(mailbox, days, me);
     // "all:" searches your whole Gmail, ignoring the mailbox filter.
     if (search.startsWith('all:')) return search.slice(4).trim() || base;
     return search ? `${base} ${search}` : base;
-  }, [mailbox, search, days]);
+  }, [mailbox, search, days, me]);
 
   // Desktop alerts for new mail and for things assigned to you by a teammate.
   const [alertsOn, setAlertsOn] = useState(() => 'Notification' in window && Notification.permission === 'granted');

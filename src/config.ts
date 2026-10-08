@@ -50,8 +50,17 @@ export const MAILBOXES: { id: Mailbox; label: string; query: string }[] = [
 
 export const DATE_RANGES = [30, 90, 180, 365];
 
-export const mailboxQuery = (id: Mailbox, days: number) =>
-  `${MAILBOXES.find((m) => m.id === id)!.query} newer_than:${days}d`;
+// "Just to me" = addressed To/Cc one of my own addresses (my login + my aliases in VITE_TEAM),
+// and not part of the shared inbox.
+export const myAddresses = (me: string) => [me, ...(TEAM.find((t) => t.email === me)?.aliases ?? [])];
+
+export function mailboxQuery(id: Mailbox, days: number, me = ''): string {
+  if (id === 'me' && me) {
+    const mine = [...new Set(myAddresses(me))].map((a) => `to:${a} cc:${a}`).join(' ');
+    return `{${mine}} -${TO_GROUP} newer_than:${days}d`;
+  }
+  return `${MAILBOXES.find((m) => m.id === id)!.query} newer_than:${days}d`;
+}
 
 // Smart folders: first match wins, checked against subject + preview.
 // Anyone can override a thread's folder from the thread header.
