@@ -251,3 +251,6 @@ body.dragging iframe { pointer-events: none; }
 .ag-join { display: inline-block; margin-top: 4px; padding: 3px 10px; border-radius: 12px; background: #1a73e8; color: #fff !important; text-decoration: none; font-size: 12px; }
 .ag-detail { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
 .ag-guest { font-size: 12px; }
+.mention-menu { position: fixed; z-index: 60; background: #fff; border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.15); min-width: 240px; max-width: 360px; font-size: 13px; padding: 4px 0; }
+.mention-menu > div { padding: 5px 10px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mention-menu > div.on, .mention-menu > div:hover { background: #e8f0fe; }

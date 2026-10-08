@@ -3,6 +3,8 @@ import {
   addresses,
   fileToOutgoing,
   getAttachmentData,
+  knownContacts,
+  type Contact,
   listSendAs,
   MAX_ATTACH_BYTES,
   rememberRecipients,
@@ -111,6 +113,31 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
   // Image resizing: click an image in the editor, then drag the corner handle.
   const [picked, setPicked] = useState<HTMLImageElement | null>(null);
   const [, redraw] = useState(0);
+  // Gmail-style @mentions: "@ma" offers matching contacts; picking one links them and adds them to To.
+  const [mention, setMention] = useState<{ q: string; list: Contact[]; idx: number; x: number; y: number } | null>(null);
+  const checkMention = () => {
+    const sel = window.getSelection();
+    const node = sel?.focusNode;
+    if (!sel || !node || node.nodeType !== Node.TEXT_NODE || !sel.isCollapsed) return setMention(null);
+    const m = (node.textContent ?? '').slice(0, sel.focusOffset).match(/(?:^|\s)@([\w.'-]{0,30})$/);
+    if (!m) return setMention(null);
+    const q = m[1].toLowerCase();
+    const list = knownContacts()
+      .filter((c) => c.name.toLowerCase().split(/\s+/).some((w) => w.startsWith(q)) || c.email.startsWith(q))
+      .slice(0, 6);
+    if (!list.length) return setMention(null);
+    const r = sel.getRangeAt(0).getBoundingClientRect();
+    setMention((old) => ({ q: m[1], list, idx: old?.q === m[1] ? old.idx : 0, x: r.left, y: r.bottom + 4 }));
+  };
+  const pickMention = (c: Contact) => {
+    if (!mention) return;
+    const sel = window.getSelection()!;
+    for (let i = 0; i <= mention.q.length; i++) sel.modify('extend', 'backward', 'character');
+    const label = (c.name || c.email).replace(/</g, '&lt;');
+    document.execCommand('insertHTML', false, `<a href="mailto:${c.email}">@${label}</a>&nbsp;`);
+    setTo((t) => (addresses(t).includes(c.email.toLowerCase()) ? t : t.trim() ? `${t.trim().replace(/,$/, '')}, ${c.email}` : c.email));
+    setMention(null);
+  };
   const startResize = (dir: 1 | -1) => (e: React.MouseEvent) => {
     if (!picked) return;
     e.preventDefault();
@@ -341,7 +368,20 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
           }
         }}
         onClick={(e) => setPicked(e.target instanceof HTMLImageElement ? e.target : null)}
-        onKeyDown={() => picked && setPicked(null)}
+        onKeyDown={(e) => {
+          if (picked) setPicked(null);
+          if (!mention) return;
+          const n = mention.list.length;
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            setMention({ ...mention, idx: (mention.idx + (e.key === 'ArrowDown' ? 1 : n - 1)) % n });
+          } else if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            pickMention(mention.list[mention.idx]);
+          } else if (e.key === 'Escape') setMention(null);
+        }}
+        onInput={checkMention}
+        onBlur={() => setTimeout(() => setMention(null), 150)}
         onScroll={() => redraw((n) => n + 1)}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
@@ -351,6 +391,15 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
           }
         }}
       />
+      {mention && (
+        <div className="mention-menu" style={{ left: mention.x, top: mention.y }}>
+          {mention.list.map((c, i) => (
+            <div key={c.email} className={i === mention.idx ? 'on' : ''} onMouseDown={(e) => (e.preventDefault(), pickMention(c))}>
+              <b>{c.name || c.email}</b> <span className="muted">{c.name ? c.email : ''}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {picked && editor.current?.contains(picked) && (() => {
         const r = picked.getBoundingClientRect();
         return (
