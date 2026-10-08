@@ -233,8 +233,15 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
 // Email HTML is rendered in a sandboxed iframe: no scripts, links open in a new tab.
 function MailBody({ html }: { html: string }) {
   const [height, setHeight] = useState(100);
+  const [zoom, setZoom] = useState<string | null>(null);
   const doc = `<base target="_blank"><style>body{font-family:system-ui,sans-serif;font-size:14px;margin:0;word-wrap:break-word}img{max-width:100%}</style>${html}`;
   return (
+    <>
+    {zoom && (
+      <div className="lightbox" onClick={() => setZoom(null)} title="Click to close">
+        <img src={zoom} alt="" />
+      </div>
+    )}
     <iframe
       className="mail"
       sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
@@ -244,7 +251,14 @@ function MailBody({ html }: { html: string }) {
         const d = e.currentTarget.contentDocument;
         if (d?.body) setHeight(d.body.scrollHeight + 16);
         if (d) trackSelection(d);
+        // Click an image (that isn't a link) to see it full size.
+        d?.querySelectorAll('img').forEach((img) => {
+          if (img.closest('a') || img.naturalWidth < 40) return;
+          img.style.cursor = 'zoom-in';
+          img.addEventListener('click', () => setZoom(img.src));
+        });
       }}
     />
+    </>
   );
 }
