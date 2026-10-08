@@ -103,6 +103,26 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
   // Your saved override wins; otherwise use the signature Gmail has for the chosen From address.
   const signature = customSig || sendAs.find((s) => s.sendAsEmail === from)?.signature || '';
   const editor = useRef<HTMLDivElement>(null);
+  // Image resizing: click an image in the editor, then drag the corner handle.
+  const [picked, setPicked] = useState<HTMLImageElement | null>(null);
+  const [, redraw] = useState(0);
+  const startResize = (dir: 1 | -1) => (e: React.MouseEvent) => {
+    if (!picked) return;
+    e.preventDefault();
+    const x0 = e.clientX;
+    const w0 = picked.getBoundingClientRect().width;
+    const move = (ev: MouseEvent) => {
+      picked.width = Math.max(40, Math.round(w0 + dir * (ev.clientX - x0)));
+      picked.removeAttribute('height');
+      redraw((n) => n + 1);
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
   const fileInput = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   // Forwarding carries the original attachments along (fetched at send time).
@@ -288,6 +308,22 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
           // nothing. If the HTML has no visible text, or the copy is just a link, paste plain text.
           const text = e.clipboardData.getData('text/plain');
           const html = e.clipboardData.getData('text/html');
+          // Pasted screenshot: put it in the email as an image (resizable by dragging its corner).
+          const img = [...e.clipboardData.files].find((f) => f.type.startsWith('image/'));
+          if (img && !html) {
+            e.preventDefault();
+            const r = new FileReader();
+            r.onload = () => {
+              const probe = new Image();
+              probe.onload = () => {
+                const w = Math.min(probe.naturalWidth, 600);
+                document.execCommand('insertHTML', false, `<img src="${r.result}" width="${w}" style="max-width:100%">`);
+              };
+              probe.src = r.result as string;
+            };
+            r.readAsDataURL(img);
+            return;
+          }
           if (!text) return;
           const visible = html ? new DOMParser().parseFromString(html, 'text/html').body.innerText.trim() : text;
           const url = /^https?:\/\/\S+$/.test(text.trim());
@@ -299,6 +335,9 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
             } else document.execCommand('insertText', false, text);
           }
         }}
+        onClick={(e) => setPicked(e.target instanceof HTMLImageElement ? e.target : null)}
+        onKeyDown={() => picked && setPicked(null)}
+        onScroll={() => redraw((n) => n + 1)}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           if (e.dataTransfer.files.length) {
@@ -307,6 +346,18 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
           }
         }}
       />
+      {picked && editor.current?.contains(picked) && (() => {
+        const r = picked.getBoundingClientRect();
+        return (
+          <div className="img-resize" style={{ left: r.left, top: r.top, width: r.width, height: r.height }}>
+            <span className="h nw" onMouseDown={startResize(-1)} />
+            <span className="h ne" onMouseDown={startResize(1)} />
+            <span className="h sw" onMouseDown={startResize(-1)} />
+            <span className="h se" onMouseDown={startResize(1)} />
+            <span className="size">{Math.round(r.width)}px</span>
+          </div>
+        );
+      })()}
       {(files.length > 0 || forwarded.length > 0) && (
         <div className="attach-list">
           {files.map((f, i) => (

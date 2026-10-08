@@ -398,20 +398,44 @@ export async function send(o: Outgoing) {
     o.references ? `References: ${o.references}` : '',
     'MIME-Version: 1.0',
   ].filter(Boolean);
+  // Pasted images live in the editor as data: URLs, which mail apps block. Send them as
+  // inline parts (cid:) so they show in the email like Gmail/Outlook pasted images do.
+  const inline: { cid: string; mimeType: string; base64: string }[] = [];
+  const html = o.html.replace(/src="data:([^;"]+);base64,([^"]+)"/g, (_m, type: string, data: string) => {
+    const cid = `img${inline.length}_${Math.random().toString(36).slice(2)}@adops`;
+    inline.push({ cid, mimeType: type, base64: data });
+    return `src="cid:${cid}"`;
+  });
+  const wrap = (b64: string) => b64.replace(/(.{76})/g, '$1\r\n');
+  const htmlPart = 'Content-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n' + html;
+  let body = htmlPart;
+  if (inline.length) {
+    const rb = `=_rel_${Math.random().toString(36).slice(2)}`;
+    body =
+      `Content-Type: multipart/related; boundary="${rb}"\r\n\r\n` +
+      [
+        `--${rb}\r\n${htmlPart}`,
+        ...inline.map(
+          (i) =>
+            `--${rb}\r\nContent-Type: ${i.mimeType}\r\nContent-ID: <${i.cid}>\r\n` +
+            `Content-Disposition: inline\r\nContent-Transfer-Encoding: base64\r\n\r\n${wrap(i.base64)}`,
+        ),
+      ].join('\r\n') +
+      `\r\n--${rb}--`;
+  }
   let mime: string;
   if (!o.files?.length) {
-    lines.push('Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: 8bit');
-    mime = `${lines.join('\r\n')}\r\n\r\n${o.html}`;
+    mime = `${lines.join('\r\n')}\r\n${body}`;
   } else {
     const b = `=_part_${Math.random().toString(36).slice(2)}`;
     lines.push(`Content-Type: multipart/mixed; boundary="${b}"`);
     const parts = [
-      `--${b}\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n${o.html}`,
+      `--${b}\r\n${body}`,
       ...o.files.map(
         (f) =>
           `--${b}\r\nContent-Type: ${f.mimeType}; name="${encodeHeader(f.name)}"\r\n` +
           `Content-Disposition: attachment; filename="${encodeHeader(f.name)}"\r\n` +
-          `Content-Transfer-Encoding: base64\r\n\r\n${f.base64.replace(/(.{76})/g, '$1\r\n')}`,
+          `Content-Transfer-Encoding: base64\r\n\r\n${wrap(f.base64)}`,
       ),
     ];
     mime = `${lines.join('\r\n')}\r\n\r\n${parts.join('\r\n')}\r\n--${b}--`;
