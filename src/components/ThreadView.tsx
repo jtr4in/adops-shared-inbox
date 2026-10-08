@@ -1,3 +1,4 @@
+import { Clip } from './Clip';
 import { useEffect, useRef, useState } from 'react';
 import { CATEGORIES, TEAM, teammateName } from '../config';
 import { setArchived, displayName, downloadAttachment, getThread, markRead, withInlineImages, type Attachment, type Message, type ThreadSummary } from '../gmail';
@@ -205,7 +206,7 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
           <article key={m.id} className="message">
             <header onClick={() => toggle(m.id)}>
               <strong>{displayName(m.from)}</strong>
-              {files(m).length > 0 && <span className="clip" title="Has attachments">📎</span>}
+              {files(m).length > 0 && <span className="clip" title="Has attachments"><Clip /></span>}
               <span className="date">{formatDate(m.date)}</span>
             </header>
             <div className="recips">
@@ -223,7 +224,7 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
                 {files(m).map((a) => (
                   <span key={a.attachmentId} className="attach">
                     <button onClick={() => (canPreview(a) ? setPreview(a) : downloadAttachment(a))} title={canPreview(a) ? 'Preview' : 'Download'}>
-                      📎 {a.name} <span className="muted">({kb(a.size)})</span>
+                      <Clip /> {a.name} <span className="muted">({kb(a.size)})</span>
                     </button>
                     <button onClick={() => downloadAttachment(a)} title="Save">⤓</button>
                   </span>

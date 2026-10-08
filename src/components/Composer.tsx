@@ -1,3 +1,4 @@
+import { Clip } from './Clip';
 import { useEffect, useRef, useState } from 'react';
 import {
   addresses,
@@ -331,7 +332,7 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
           </button>
         ))}
         <button className="tool" title="Attach files" onClick={() => fileInput.current?.click()}>
-          📎
+          <Clip />
         </button>
         <input ref={fileInput} type="file" multiple hidden onChange={(e) => addFiles(e.target.files)} />
         <span className="spacer" />
@@ -427,13 +428,13 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
         <div className="attach-list">
           {files.map((f, i) => (
             <span key={`f${i}`} className="attach">
-              📎 {f.name} <span className="muted">({kb(f.size)})</span>
+              <Clip /> {f.name} <span className="muted">({kb(f.size)})</span>
               <button onClick={() => setFiles(files.filter((_, j) => j !== i))}>×</button>
             </span>
           ))}
           {forwarded.map((a) => (
             <span key={a.attachmentId} className="attach">
-              📎 {a.name} <span className="muted">({kb(a.size)})</span>
+              <Clip /> {a.name} <span className="muted">({kb(a.size)})</span>
               <button onClick={() => setForwarded(forwarded.filter((x) => x !== a))}>×</button>
             </span>
           ))}

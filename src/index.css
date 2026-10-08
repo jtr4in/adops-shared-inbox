@@ -265,3 +265,4 @@ body.dragging iframe { pointer-events: none; }
 .folder-row { display: grid; grid-template-columns: 180px 1fr auto auto auto; gap: 4px; width: 100%; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 @media (max-width: 700px) { .folder-row { grid-template-columns: 1fr auto auto auto; } .folder-row input:first-child { grid-column: 1 / -1; } }
+.clip-svg { vertical-align: -2px; color: #5f6368; flex-shrink: 0; }

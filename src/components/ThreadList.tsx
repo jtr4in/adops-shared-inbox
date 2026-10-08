@@ -1,3 +1,4 @@
+import { Clip } from './Clip';
 import { useRef } from 'react';
 import { GROUP_ADDRESSES, TEAM, teammateName } from '../config';
 import { addresses, displayName, type ThreadSummary } from '../gmail';
@@ -143,7 +144,7 @@ export function ThreadList(p: Props) {
                 <span className="snippet"> - {t.snippet}</span>
               </span>
               {!!tr?.noteCount && <span className="clip" title={`${tr.noteCount} team note${tr.noteCount > 1 ? 's' : ''}`}>🗒</span>}
-              {t.hasFiles && <span className="clip" title="Has attachments">📎</span>}
+              {t.hasFiles && <span className="clip" title="Has attachments"><Clip /></span>}
               <span className="date">{formatDate(t.date)}</span>
             </li>
           );
