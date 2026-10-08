@@ -5,11 +5,13 @@ import {
   getAttachmentData,
   listSendAs,
   MAX_ATTACH_BYTES,
+  rememberRecipients,
   send,
   type Attachment,
   type Message,
   type SendAs,
 } from '../gmail';
+import { AddressInput } from './AddressInput';
 import { saveTemplate, useSignature, useTemplates } from '../triage';
 
 export type ReplyMode = 'reply' | 'replyAll' | 'forward' | 'new';
@@ -79,6 +81,7 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [cc, setCc] = useState('');
+  const [bcc, setBcc] = useState('');
   const [subj, setSubj] = useState(() => {
     if (mode === 'new') return '';
     const prefix = mode === 'forward' ? 'Fwd: ' : 'Re: ';
@@ -179,6 +182,7 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
         from: sa?.displayName ? `"${sa.displayName}" <${from}>` : from,
         to: addresses(to),
         cc: addresses(cc),
+        bcc: addresses(bcc),
         subject: subj,
         html,
         threadId: isReply ? last.threadId : undefined,
@@ -186,6 +190,7 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
         references: isReply ? `${last.references} ${last.messageId}`.trim() : undefined,
         files: outgoing,
       });
+      rememberRecipients([...addresses(to), ...addresses(cc), ...addresses(bcc)]);
       onSent();
     } catch (e) {
       setError(String(e));
@@ -228,11 +233,15 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
       </label>
       <label className="field">
         To
-        <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="name@example.com, …" />
+        <AddressInput value={to} onChange={setTo} placeholder="name@example.com, …" />
       </label>
       <label className="field">
         Cc
-        <input value={cc} onChange={(e) => setCc(e.target.value)} />
+        <AddressInput value={cc} onChange={setCc} />
+      </label>
+      <label className="field">
+        Bcc
+        <AddressInput value={bcc} onChange={setBcc} />
       </label>
       <label className="field">
         Subject

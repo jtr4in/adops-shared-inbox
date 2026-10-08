@@ -195,3 +195,8 @@ body.dragging iframe { pointer-events: none; }
   .modal { width: 95vw !important; max-width: 95vw; }
   input, select, textarea, .editor { font-size: 16px; } /* stops iPhone zooming in */
 }
+.addr { position: relative; flex: 1; display: flex; }
+.addr input { width: 100%; }
+.addr-menu { position: absolute; top: 100%; left: 0; right: 0; z-index: 30; margin: 2px 0 0; padding: 4px 0; list-style: none; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.12); max-height: 260px; overflow-y: auto; }
+.addr-menu li { padding: 6px 10px; cursor: pointer; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.addr-menu li.on, .addr-menu li:hover { background: var(--accent-soft); }

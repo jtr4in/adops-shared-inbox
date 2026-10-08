@@ -335,6 +335,7 @@ export interface Outgoing {
   from: string;
   to: string[];
   cc: string[];
+  bcc?: string[];
   subject: string;
   html: string;
   threadId?: string;
@@ -370,6 +371,8 @@ export async function send(o: Outgoing) {
     `From: ${o.from}`,
     `To: ${o.to.join(', ')}`,
     o.cc.length ? `Cc: ${o.cc.join(', ')}` : '',
+    // Gmail delivers to Bcc and strips the header before anyone else sees it.
+    o.bcc?.length ? `Bcc: ${o.bcc.join(', ')}` : '',
     `Subject: ${encodeHeader(o.subject)}`,
     o.inReplyTo ? `In-Reply-To: ${o.inReplyTo}` : '',
     o.references ? `References: ${o.references}` : '',
@@ -395,4 +398,41 @@ export async function send(o: Outgoing) {
   }
   const raw = base64url(mime);
   return gmail('/messages/send', { method: 'POST', body: JSON.stringify({ raw, threadId: o.threadId }) });
+}
+
+// Address book for autofill: everyone seen in your recent emails, plus people you've sent to.
+export interface Contact {
+  email: string;
+  name: string;
+  count: number;
+}
+const SENT_TO_KEY = 'sentTo:v1';
+export function rememberRecipients(emails: string[]) {
+  try {
+    const cur: string[] = JSON.parse(localStorage.getItem(SENT_TO_KEY) ?? '[]');
+    localStorage.setItem(SENT_TO_KEY, JSON.stringify([...emails, ...cur.filter((e) => !emails.includes(e))].slice(0, 300)));
+  } catch {
+    /* ignore */
+  }
+}
+export function knownContacts(): Contact[] {
+  const map = new Map<string, Contact>();
+  const add = (raw: string, weight: number) => {
+    for (const part of raw.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)) {
+      const email = addresses(part)[0];
+      if (!email) continue;
+      const name = part.includes('<') ? part.split('<')[0].replace(/["']/g, '').replace(/ via .*/, '').trim() : '';
+      const c = map.get(email) ?? { email, name: '', count: 0 };
+      c.count += weight;
+      if (!c.name && name) c.name = name;
+      map.set(email, c);
+    }
+  };
+  for (const { summary: s } of summaryCache.values()) [s.from, s.to, s.cc].forEach((r) => add(r ?? '', 1));
+  try {
+    for (const e of JSON.parse(localStorage.getItem(SENT_TO_KEY) ?? '[]') as string[]) add(e, 5);
+  } catch {
+    /* ignore */
+  }
+  return [...map.values()].sort((a, b) => b.count - a.count);
 }
