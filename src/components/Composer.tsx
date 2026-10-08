@@ -12,6 +12,7 @@ import {
   type SendAs,
 } from '../gmail';
 import { AddressInput } from './AddressInput';
+import { GROUP_ADDRESSES } from '../config';
 import { saveTemplate, useSignature, useTemplates } from '../triage';
 
 export type ReplyMode = 'reply' | 'replyAll' | 'forward' | 'new';
@@ -28,16 +29,23 @@ interface Props {
 
 const uniq = (xs: string[]) => [...new Set(xs)];
 
-function recipients(mode: ReplyMode, last: Message | undefined, mine: string[]) {
+function recipients(mode: ReplyMode, last: Message | undefined, mineAll: string[], thread: Message[] = []) {
   if (!last || mode === 'forward' || mode === 'new') return { to: [], cc: [] };
+  // adops@ is one of our send-as addresses, but it's the shared inbox, not "me": never drop it.
+  const mine = mineAll.filter((a) => !GROUP_ADDRESSES.includes(a));
+  const keepGroup = (r: { to: string[]; cc: string[] }) => {
+    const groups = GROUP_ADDRESSES.filter((g) => thread.some((m) => [...addresses(m.to), ...addresses(m.cc)].includes(g)));
+    for (const g of groups) if (!r.to.includes(g) && !r.cc.includes(g)) r.cc.push(g);
+    return r;
+  };
   const fromMe = addresses(last.from).some((a) => mine.includes(a));
   // Replying to our own last message goes back to whoever we sent it to.
   const primary = fromMe ? addresses(last.to) : addresses(last.from);
-  if (mode === 'reply') return { to: primary, cc: [] };
+  if (mode === 'reply') return keepGroup({ to: primary.filter((a) => !GROUP_ADDRESSES.includes(a) || primary.length === 1), cc: [] });
   const notMe = (a: string) => !mine.includes(a);
   const to = uniq([...primary, ...(fromMe ? [] : addresses(last.to))]).filter(notMe);
   const cc = uniq(addresses(last.cc)).filter((a) => notMe(a) && !to.includes(a));
-  return { to, cc };
+  return keepGroup({ to, cc });
 }
 
 function quote(m: Message, forward: boolean) {
@@ -130,7 +138,7 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
         setSendAs(list);
         setFrom((list.find((s) => s.isDefault) ?? list[0])?.sendAsEmail ?? me);
         const mine = [me, ...list.map((s) => s.sendAsEmail.toLowerCase())];
-        const r = recipients(mode, last, mine);
+        const r = recipients(mode, last, mine, messages);
         setTo(r.to.join(', '));
         setCc(r.cc.join(', '));
       })
