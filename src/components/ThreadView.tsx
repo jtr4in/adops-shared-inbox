@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CATEGORIES, TEAM, teammateName } from '../config';
-import { setArchived, chainPeople, displayName, downloadAttachment, getThread, markRead, type Message, type ThreadSummary } from '../gmail';
+import { setArchived, displayName, downloadAttachment, getThread, markRead, type Message, type ThreadSummary } from '../gmail';
 import { addNote, categoryOf, updateTriage, useNotes, type Presence, type Triage } from '../triage';
 import { formatDate } from './ThreadList';
 import { trackSelection } from '../selection';
@@ -35,8 +35,6 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     // Reload when a new message lands in this thread during auto-sync.
   }, [summary.threadId, summary.count]);
-  const [showPeople, setShowPeople] = useState(false);
-  const people = messages ? chainPeople(messages) : [];
   const notesRef = useRef<HTMLInputElement>(null);
 
   const set = (patch: Partial<Triage>) => updateTriage(summary.key, summary.subject, patch);
@@ -115,9 +113,6 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
         </div>
         {messages && (
           <div className="chain">
-            <button className="chip people" onClick={() => setShowPeople(!showPeople)}>
-              👥 {people.length} in chain {showPeople ? '▴' : '▾'}
-            </button>
             <select
               className="cat-select"
               value={categoryOf(summary, triage)}
@@ -131,15 +126,6 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
             <span className="muted small">
               {messages.length} message{messages.length > 1 ? 's' : ''}
             </span>
-            {showPeople && (
-              <div className="people-list">
-                {people.map((p) => (
-                  <span key={p} className="person">
-                    {p}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         )}
         {others.length > 0 && (
@@ -180,9 +166,13 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
           <article key={m.id} className="message">
             <header onClick={() => toggle(m.id)}>
               <strong>{displayName(m.from)}</strong>
-              <span className="muted"> to {m.to}{m.cc && `, cc ${m.cc}`}</span>
               <span className="date">{formatDate(m.date)}</span>
             </header>
+            <div className="recips">
+              <div><b>To:</b> {m.to}</div>
+              {m.cc && <div><b>Cc:</b> {m.cc}</div>}
+              {m.bcc && <div><b>Bcc:</b> {m.bcc}</div>}
+            </div>
             {open.has(m.id) ? (
               <>
                 <MailBody html={m.html ?? ''} />

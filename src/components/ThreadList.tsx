@@ -130,7 +130,7 @@ export function ThreadList(p: Props) {
               {tr?.assignee && <span className="chip assigned">{teammateName(tr.assignee).split(' ')[0]}</span>}
               {tr?.done && <span className="chip done">Done</span>}
               {t.sent && <span className="chip sent">Sent</span>}
-              <span className="line" title={`${chip ?? ''} · ${short(categoryOf(t, tr))} · ${t.people} in chain`}>
+              <span className="line" title={`${chip ?? ''} · ${short(categoryOf(t, tr))}`}>
                 <span className="subject">{t.subject}</span>
                 <span className="snippet"> - {t.snippet}</span>
               </span>

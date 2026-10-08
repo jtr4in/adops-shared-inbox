@@ -62,6 +62,7 @@ export interface Message {
   from: string;
   to: string;
   cc: string;
+  bcc?: string;
   subject: string;
   date: number;
   snippet: string;
@@ -156,6 +157,7 @@ function parse(m: RawMessage, withBody: boolean): Message {
     from: header(p, 'From'),
     to: header(p, 'To'),
     cc: header(p, 'Cc'),
+    bcc: header(p, 'Bcc'), // only present on emails you sent
     subject: header(p, 'Subject'),
     date: Number(m.internalDate),
     snippet: m.snippet,
