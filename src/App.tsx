@@ -78,7 +78,7 @@ function matches(view: View, t: ThreadSummary, tr: Triage | undefined, me: strin
     case 'member':
       return !done && tr?.assignee === view.email;
     case 'category':
-      return !done && categoryOf(t, tr) === view.name;
+      return categoryOf(t, tr) === view.name;
   }
 }
 
