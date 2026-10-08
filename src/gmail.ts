@@ -513,3 +513,25 @@ export async function withInlineImages(msgs: Message[]): Promise<Message[]> {
   );
   return out;
 }
+
+export async function attachmentBytes(a: Attachment): Promise<Uint8Array<ArrayBuffer>> {
+  return Uint8Array.from(atob(await getAttachmentData(a)), (c) => c.charCodeAt(0));
+}
+
+// Uploads the file to the user's Drive as a Google Sheet and returns its URL.
+export async function openInSheets(a: Attachment): Promise<string> {
+  const bytes = await attachmentBytes(a);
+  const token = getGmailToken();
+  const meta = { name: a.name.replace(/\.[^.]+$/, ''), mimeType: 'application/vnd.google-apps.spreadsheet' };
+  const body = new FormData();
+  body.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+  body.append('file', new Blob([bytes], { type: a.mimeType || 'text/csv' }));
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+    method: 'POST', headers: { Authorization: `Bearer ${token}` }, body,
+  });
+  if (res.status === 401 || res.status === 403)
+    throw new Error('Google needs one more permission for Sheets. Sign out and back in (or reconnect), then try again.');
+  if (!res.ok) throw new Error(`Drive upload failed (${res.status})`);
+  const { id } = await res.json();
+  return `https://docs.google.com/spreadsheets/d/${id}/edit`;
+}

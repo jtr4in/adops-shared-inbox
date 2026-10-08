@@ -10,6 +10,7 @@ export const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/gmail.modify');
 provider.addScope('https://www.googleapis.com/auth/gmail.send');
+provider.addScope('https://www.googleapis.com/auth/drive.file');
 
 // Google access tokens last an hour and Firebase can't refresh them from the
 // browser. We keep the token with its expiry (so reopening the tab within the

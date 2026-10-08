@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CATEGORIES, TEAM, teammateName } from '../config';
-import { setArchived, displayName, downloadAttachment, getThread, markRead, withInlineImages, type Message, type ThreadSummary } from '../gmail';
+import { setArchived, displayName, downloadAttachment, getThread, markRead, withInlineImages, type Attachment, type Message, type ThreadSummary } from '../gmail';
+import { AttachmentPreview, canPreview } from './AttachmentPreview';
 import { addNote, categoryOf, updateTriage, useNotes, type Presence, type Triage } from '../triage';
 import { formatDate } from './ThreadList';
 import { trackSelection } from '../selection';
@@ -16,6 +17,7 @@ interface Props {
 
 export function ThreadView({ summary, triage, me, others, onComposing }: Props) {
   const [messages, setMessages] = useState<Message[] | null>(null);
+  const [preview, setPreview] = useState<Attachment | null>(null);
   const [error, setError] = useState('');
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [reply, setReply] = useState<ReplyMode | null>(null);
@@ -216,9 +218,12 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
             {files(m).length > 0 && (
               <div className="attach-list">
                 {files(m).map((a) => (
-                  <button key={a.attachmentId} className="attach" onClick={() => downloadAttachment(a)} title="Download">
-                    📎 {a.name} <span className="muted">({kb(a.size)})</span> ⤓
-                  </button>
+                  <span key={a.attachmentId} className="attach">
+                    <button onClick={() => (canPreview(a) ? setPreview(a) : downloadAttachment(a))} title={canPreview(a) ? 'Preview' : 'Download'}>
+                      📎 {a.name} <span className="muted">({kb(a.size)})</span>
+                    </button>
+                    <button onClick={() => downloadAttachment(a)} title="Save">⤓</button>
+                  </span>
                 ))}
               </div>
             )}
@@ -226,6 +231,7 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
         ))}
 
       </div>
+      {preview && <AttachmentPreview a={preview} onClose={() => setPreview(null)} />}
     </section>
   );
 }
