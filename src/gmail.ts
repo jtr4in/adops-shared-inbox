@@ -95,7 +95,8 @@ export interface ThreadSummary {
   sent: boolean; // last message was sent from this mailbox
   people: number; // distinct addresses across the chain
   firstTo: string[];
-  inInbox: boolean; // in this person's Gmail inbox (not archived) // To of the first message, for smart assignment
+  inInbox: boolean;
+  hasFiles?: boolean; // some message has attachments // in this person's Gmail inbox (not archived) // To of the first message, for smart assignment
 }
 
 const header = (p: Part, name: string) =>
@@ -204,7 +205,7 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
 // Thread summaries cached by threadId + historyId, so a refresh only
 // re-fetches threads that actually changed.
 // Kept in this browser (localStorage) so reopening the app doesn't re-download every email.
-const CACHE_KEY = 'summaryCache:v2';
+const CACHE_KEY = 'summaryCache:v3';
 const summaryCache = new Map<string, { historyId: string; summary: ThreadSummary }>(
   (() => {
     try {
@@ -247,6 +248,7 @@ function summarize(t: { messages: RawMessage[] }): ThreadSummary {
     people: chainPeople(msgs).length,
     firstTo: addresses(first.to),
     inInbox: t.messages.some((m) => m.labelIds?.includes('INBOX')),
+    hasFiles: t.messages.some((m) => m.payload?.mimeType === 'multipart/mixed'),
   };
 }
 

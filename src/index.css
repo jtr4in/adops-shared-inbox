@@ -223,3 +223,5 @@ body.dragging iframe { pointer-events: none; }
 .img-resize .se { right: -6px; bottom: -6px; cursor: nwse-resize; }
 .img-resize .size { position: absolute; right: 0; bottom: -22px; font-size: 11px; background: var(--accent); color: #fff; padding: 1px 5px; border-radius: 3px; }
 .editor img { cursor: pointer; }
+.clip { flex: none; font-size: 12px; opacity: .7; margin-left: auto; }
+.clip + .date { margin-left: 4px; }

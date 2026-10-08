@@ -200,6 +200,7 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
           <article key={m.id} className="message">
             <header onClick={() => toggle(m.id)}>
               <strong>{displayName(m.from)}</strong>
+              {files(m).length > 0 && <span className="clip" title="Has attachments">📎</span>}
               <span className="date">{formatDate(m.date)}</span>
             </header>
             <div className="recips">
@@ -208,20 +209,18 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
               {m.bcc && <div><b>Bcc:</b> {m.bcc}</div>}
             </div>
             {open.has(m.id) ? (
-              <>
-                <MailBody html={m.html ?? ''} />
-                {m.attachments.length > 0 && (
-                  <div className="attach-list">
-                    {m.attachments.map((a) => (
-                      <button key={a.attachmentId} className="attach" onClick={() => downloadAttachment(a)} title="Download">
-                        📎 {a.name} <span className="muted">({kb(a.size)})</span> ⤓
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
+              <MailBody html={m.html ?? ''} />
             ) : (
               <div className="snippet" onClick={() => toggle(m.id)}>{m.snippet}</div>
+            )}
+            {files(m).length > 0 && (
+              <div className="attach-list">
+                {files(m).map((a) => (
+                  <button key={a.attachmentId} className="attach" onClick={() => downloadAttachment(a)} title="Download">
+                    📎 {a.name} <span className="muted">({kb(a.size)})</span> ⤓
+                  </button>
+                ))}
+              </div>
             )}
           </article>
         ))}
@@ -230,6 +229,9 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
     </section>
   );
 }
+
+// Real attachments (not images pasted into the body, which show inside the email).
+const files = (m: Message) => m.attachments.filter((a) => !(a.contentId && m.html?.includes(`cid:${a.contentId}`)));
 
 // Email HTML is rendered in a sandboxed iframe: no scripts, links open in a new tab.
 function MailBody({ html }: { html: string }) {
