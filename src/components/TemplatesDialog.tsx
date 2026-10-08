@@ -1,10 +1,19 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { TOOLS } from './Composer';
 import { deleteTemplate, saveTemplate, useTemplates, type Template } from '../triage';
 
 // Shared reply templates. Anything saved here shows up in every composer's Templates menu.
 export function TemplatesDialog({ onClose }: { onClose: () => void }) {
   const templates = useTemplates();
   const [editing, setEditing] = useState<Partial<Template> | null>(null);
+  const editor = useRef<HTMLDivElement>(null);
+  const exec = (cmd: string) => {
+    editor.current?.focus();
+    if (cmd === 'createLink') {
+      const url = prompt('Link URL');
+      if (url) document.execCommand('createLink', false, url);
+    } else document.execCommand(cmd);
+  };
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -36,12 +45,26 @@ export function TemplatesDialog({ onClose }: { onClose: () => void }) {
               value={editing.name ?? ''}
               onChange={(e) => setEditing({ ...editing, name: e.target.value })}
             />
+            <div className="toolbar">
+              {TOOLS.map((t) => (
+                <button
+                  key={t.cmd}
+                  title={t.title}
+                  className={`tool tool-${t.cmd}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => exec(t.cmd)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
             <div
+              ref={editor}
+              key={editing.id ?? 'new'}
               className="editor"
               contentEditable
               suppressContentEditableWarning
               dangerouslySetInnerHTML={{ __html: editing.html ?? '' }}
-              onBlur={(e) => setEditing({ ...editing, html: e.currentTarget.innerHTML })}
             />
             <div className="composer-bar">
               <span className="spacer" />
@@ -50,7 +73,7 @@ export function TemplatesDialog({ onClose }: { onClose: () => void }) {
                 className="primary"
                 disabled={!editing.name}
                 onClick={() =>
-                  saveTemplate({ id: editing.id, name: editing.name!, html: editing.html ?? '' }).then(() =>
+                  saveTemplate({ id: editing.id, name: editing.name!, html: editor.current?.innerHTML ?? '' }).then(() =>
                     setEditing(null),
                   )
                 }

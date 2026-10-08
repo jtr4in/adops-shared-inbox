@@ -53,7 +53,7 @@ export const kb = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB`
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-const TOOLS: { cmd: string; label: string; title: string }[] = [
+export const TOOLS: { cmd: string; label: string; title: string }[] = [
   { cmd: 'bold', label: 'B', title: 'Bold' },
   { cmd: 'italic', label: 'I', title: 'Italic' },
   { cmd: 'underline', label: 'U', title: 'Underline' },
