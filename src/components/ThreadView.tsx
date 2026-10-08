@@ -22,6 +22,10 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [reply, setReply] = useState<ReplyMode | null>(null);
   const notes = useNotes(summary.key);
+  // Notes written before the list icon existed: bring the thread's count up to date.
+  useEffect(() => {
+    if (notes.length > (triage?.noteCount ?? 0)) updateTriage(summary.key, summary.subject, { noteCount: notes.length });
+  }, [notes.length, triage?.noteCount, summary.key, summary.subject]);
   const [note, setNote] = useState('');
   const [notesOpen, setNotesOpen] = useState(false);
   const openNotes = () => {
@@ -153,7 +157,7 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
       <div className="thread-body">
         {error && <div className="error">{error}</div>}
         {!messages && !error && <div className="muted">Loading…</div>}
-        <div className={`notes ${notesOpen ? 'open' : ''}`}>
+        {(notes.length > 0 || notesOpen) && <div className={`notes ${notesOpen ? 'open' : ''}`}>
           <button className="notes-toggle" onClick={() => setNotesOpen(!notesOpen)}>
             🔒 Team notes{notes.length ? ` (${notes.length})` : ''} <span className="muted small">only visible here, never emailed</span>
             <span className="spacer" />
@@ -180,7 +184,7 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
           </form>
           </>
           )}
-        </div>
+        </div>}
         {reply && messages && (
           <Composer
             key={reply}

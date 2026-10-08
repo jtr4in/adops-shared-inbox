@@ -3,6 +3,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  increment,
   doc,
   onSnapshot,
   orderBy,
@@ -21,6 +22,7 @@ export interface Triage {
   flagged?: boolean;
   done?: boolean;
   category?: string; // manual smart-folder override
+  noteCount?: number; // team notes on this thread (for the list icon)
   autoAssigned?: boolean; // smart assignment already ran (don't redo after a manual unassign)
   subject?: string;
   updatedBy?: string;
@@ -71,6 +73,7 @@ export function useNotes(key: string | undefined): Note[] {
 }
 
 export function addNote(key: string, text: string) {
+  setDoc(doc(db, 'threads', key), { noteCount: increment(1) }, { merge: true }).catch(() => {});
   return addDoc(collection(db, 'threads', key, 'notes'), {
     text,
     author: auth.currentUser?.email ?? '',

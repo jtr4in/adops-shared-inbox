@@ -142,6 +142,7 @@ export function ThreadList(p: Props) {
                 <span className="subject">{t.subject}</span>
                 <span className="snippet"> - {t.snippet}</span>
               </span>
+              {!!tr?.noteCount && <span className="clip" title={`${tr.noteCount} team note${tr.noteCount > 1 ? 's' : ''}`}>🗒</span>}
               {t.hasFiles && <span className="clip" title="Has attachments">📎</span>}
               <span className="date">{formatDate(t.date)}</span>
             </li>
