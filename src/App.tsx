@@ -248,6 +248,22 @@ function Inbox({ user }: { user: User }) {
     };
   }, [refresh]);
 
+  // Auto-renew: Google tokens last an hour and browsers only allow the sign-in popup
+  // right after a click. So when the token is within 15 minutes of expiring (or has
+  // lapsed), the next click anywhere quietly renews it. The popup closes by itself.
+  useEffect(() => {
+    let busyRenew = false;
+    const onClick = () => {
+      if (busyRenew || tokenExpiresAt() - Date.now() > 15 * 60_000) return;
+      busyRenew = true;
+      signIn()
+        .catch(() => {})
+        .finally(() => (busyRenew = false));
+    };
+    window.addEventListener('pointerdown', onClick, true);
+    return () => window.removeEventListener('pointerdown', onClick, true);
+  }, []);
+
   // Gmail session: show Reconnect when it lapses, resume syncing when renewed.
   useEffect(() => {
     const off = () => setExpired(true);
