@@ -15,10 +15,20 @@ async function gmail<T>(path: string, init?: RequestInit, attempt = 0): Promise<
     markTokenExpired();
     throw new AuthExpiredError();
   }
-  const res = await fetch(`${API}${path}`, {
-    ...init,
-    headers: { ...init?.headers, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API}${path}`, {
+      ...init,
+      headers: { ...init?.headers, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    });
+  } catch (e) {
+    // "Failed to fetch" = a network blip (Wi-Fi drop, VPN, laptop waking up). Retry quietly.
+    if (attempt < 3) {
+      await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
+      return gmail(path, init, attempt + 1);
+    }
+    throw new Error("Couldn't reach Gmail. Check your internet connection and try again.");
+  }
   if (res.status === 401) {
     markTokenExpired();
     throw new AuthExpiredError();
