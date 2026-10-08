@@ -62,19 +62,59 @@ export function mailboxQuery(id: Mailbox, days: number, me = ''): string {
   return `${MAILBOXES.find((m) => m.id === id)!.query} newer_than:${days}d`;
 }
 
-// Smart folders: first match wins, checked against subject + preview.
-// Anyone can override a thread's folder from the thread header.
-export const CATEGORIES: { name: string; match: RegExp }[] = [
-  { name: 'Contracts & Amendments', match: /contract|amend|agreement|terms|insertion order|\bIO\b|docusign|signed/i },
-  { name: 'Billing & Invoices', match: /invoice|billing|payment|remit|statement|accounting|paid|payout/i },
-  { name: 'Intros & Campaign Setup', match: /intro|welcome|onboard|set ?up|launch|pixel|postback|tracking|new campaign|creative|promo/i },
-  { name: 'Account & Status Updates', match: /status|update|pause|resume|live|account|notification|cap\b|budget|change|report/i },
-  { name: 'General Inquiries', match: /.*/ },
+// Smart folders. AdOps folders are shared (first match wins; anything unmatched is General
+// Inquiries). "My" folders are per person and just filter: a thread shows in every one it matches.
+// Keywords are comma-separated and matched as whole words against subject, preview and sender.
+// Anyone can override a thread's AdOps folder from the thread header.
+export interface Folder {
+  name: string;
+  keywords: string;
+}
+
+export const FALLBACK_FOLDER = 'General Inquiries';
+
+export const DEFAULT_FOLDERS: Folder[] = [
+  { name: 'Contracts & Amendments', keywords: 'contract, amend, amendment, agreement, terms, insertion order, IO, docusign, signed' },
+  { name: 'Billing & Invoices', keywords: 'invoice, billing, payment, remit, remittance, statement, accounting, paid, payout' },
+  { name: 'Intros & Campaign Setup', keywords: 'intro, introduction, welcome, onboard, onboarding, setup, set up, launch, pixel, postback, tracking, new campaign, creative, creatives, promo' },
+  { name: 'Account & Status Updates', keywords: 'status, update, pause, paused, resume, live, account, notification, cap, budget, change, report, caps' },
 ];
 
-export function categorize(subject: string, snippet: string): string {
-  const text = `${subject} ${snippet}`;
-  return CATEGORIES.find((c) => c.match.test(text))!.name;
+// Live lists, replaced in place when the saved settings load (see useFolders).
+export const CATEGORIES: { name: string }[] = [];
+let shared: Folder[] = [];
+export let MY_FOLDERS: Folder[] = [];
+
+export function setSharedFolders(list: Folder[]) {
+  shared = list;
+  CATEGORIES.splice(0, CATEGORIES.length, ...list.map((f) => ({ name: f.name })), { name: FALLBACK_FOLDER });
+}
+export const sharedFolders = () => shared;
+export function setMyFolders(list: Folder[]) {
+  MY_FOLDERS = list;
+}
+setSharedFolders(DEFAULT_FOLDERS);
+
+const keywordRe = new Map<string, RegExp | null>();
+export function folderMatches(f: Folder, text: string): boolean {
+  let re = keywordRe.get(f.keywords);
+  if (re === undefined) {
+    // Words of 4+ letters match as a prefix ("amend" finds "amendment"); short ones like "IO"
+    // only match whole (so not "iOS"). "@brand.com" style keywords match anywhere.
+    const parts = f.keywords.split(',').map((w) => w.trim()).filter(Boolean).map((w) => {
+      const body = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*');
+      const lead = /^[a-z0-9]/i.test(w) ? '(?<![a-z0-9])' : '';
+      return lead + body + (w.length >= 4 ? '' : '(?![a-z0-9])');
+    });
+    re = parts.length ? new RegExp(parts.join('|'), 'i') : null;
+    keywordRe.set(f.keywords, re);
+  }
+  return !!re && re.test(text);
+}
+
+export function categorize(subject: string, snippet: string, from = ''): string {
+  const text = `${subject} ${snippet} ${from}`;
+  return shared.find((f) => folderMatches(f, text))?.name ?? FALLBACK_FOLDER;
 }
 
 // Smart assignment: an email addressed To exactly one teammate (any of their

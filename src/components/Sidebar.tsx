@@ -1,12 +1,13 @@
-import { CATEGORIES, MAILBOXES, TEAM, type Mailbox } from '../config';
+import { CATEGORIES, MAILBOXES, MY_FOLDERS, TEAM, type Mailbox } from '../config';
 
 export type View =
   | { kind: 'all' | 'unassigned' | 'mine' | 'flagged' | 'done' }
   | { kind: 'member'; email: string }
-  | { kind: 'category'; name: string };
+  | { kind: 'category'; name: string }
+  | { kind: 'myfolder'; name: string };
 
 export const viewId = (v: View) =>
-  v.kind === 'member' ? `member:${v.email}` : v.kind === 'category' ? `cat:${v.name}` : v.kind;
+  v.kind === 'member' ? `member:${v.email}` : v.kind === 'category' ? `cat:${v.name}` : v.kind === 'myfolder' ? `my:${v.name}` : v.kind;
 
 const VIEWS: { view: View; label: string; icon: string }[] = [
   { view: { kind: 'all' }, label: 'All open', icon: '✉' },
@@ -23,9 +24,10 @@ interface Props {
   onView: (v: View) => void;
   counts: Record<string, number>;
   onCompose: () => void;
+  onFolderSettings: () => void;
 }
 
-export function Sidebar({ mailbox, onMailbox, view, onView, counts, onCompose }: Props) {
+export function Sidebar({ mailbox, onMailbox, view, onView, counts, onCompose, onFolderSettings }: Props) {
   const item = (v: View, label: string, icon: string) => (
     <button
       key={viewId(v)}
@@ -55,8 +57,13 @@ export function Sidebar({ mailbox, onMailbox, view, onView, counts, onCompose }:
       ))}
       <div className="section">Inbox views</div>
       {VIEWS.map((v) => item(v.view, v.label, v.icon))}
-      <div className="section">Smart folders</div>
+      <div className="section with-btn">
+        Smart folders
+        <button className="section-btn" title="Smart folder settings" onClick={onFolderSettings}>⚙</button>
+      </div>
       {CATEGORIES.map((c) => item({ kind: 'category', name: c.name }, c.name, '▭'))}
+      {MY_FOLDERS.length > 0 && <div className="section">My folders</div>}
+      {MY_FOLDERS.map((f) => item({ kind: 'myfolder', name: f.name }, f.name, '★'))}
       <div className="section">Team members</div>
       {TEAM.map((m) => item({ kind: 'member', email: m.email }, m.name, m.name[0]))}
     </nav>

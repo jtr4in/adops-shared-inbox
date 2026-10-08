@@ -255,3 +255,13 @@ body.dragging iframe { pointer-events: none; }
 .mention-menu > div { padding: 5px 10px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mention-menu > div.on, .mention-menu > div:hover { background: #e8f0fe; }
 .nudge { color: #e37400; font-weight: 600; font-size: 12px; white-space: nowrap; margin-right: 6px; }
+/* Smart folder settings */
+.section.with-btn { display: flex; align-items: center; justify-content: space-between; }
+.section-btn { border: 0; background: none; padding: 0 4px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.section-btn:hover { color: var(--accent); }
+.modal.folders { width: min(760px, 94vw); max-height: 88vh; overflow-y: auto; }
+.modal.folders h3 { margin: 8px 0 0; }
+.folder-list { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.folder-row { display: grid; grid-template-columns: 180px 1fr auto auto auto; gap: 4px; width: 100%; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+@media (max-width: 700px) { .folder-row { grid-template-columns: 1fr auto auto auto; } .folder-row input:first-child { grid-column: 1 / -1; } }

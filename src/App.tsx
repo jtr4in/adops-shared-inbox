@@ -1,10 +1,11 @@
+import { FoldersDialog } from './components/FoldersDialog';
 import { Agenda } from './components/Agenda';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { AUTH_EXPIRED, AUTH_RENEWED, auth, getGmailToken, signIn, signOut, tokenExpiresAt } from './firebase';
-import { CATEGORIES, DATE_RANGES, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, autoAssignee, type Mailbox } from './config';
+import { CATEGORIES, folderMatches, MY_FOLDERS, DATE_RANGES, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, autoAssignee, type Mailbox } from './config';
 import { AuthExpiredError, displayName, listThreads, setArchived, type ThreadSummary } from './gmail';
-import { categoryOf, updateTriage, usePresence, useReportPresence, useTriage, type Triage } from './triage';
+import { categoryOf, useFolders, updateTriage, usePresence, useReportPresence, useTriage, type Triage } from './triage';
 import { Sidebar, viewId, type View } from './components/Sidebar';
 import { ThreadList } from './components/ThreadList';
 import { ThreadView } from './components/ThreadView';
@@ -79,22 +80,28 @@ function matches(view: View, t: ThreadSummary, tr: Triage | undefined, me: strin
       return !done && tr?.assignee === view.email;
     case 'category':
       return categoryOf(t, tr) === view.name;
+    case 'myfolder': {
+      const f = MY_FOLDERS.find((x) => x.name === view.name);
+      return !!f && folderMatches(f, `${t.subject} ${t.snippet} ${t.from}`);
+    }
   }
 }
 
-const ALL_VIEWS: View[] = [
+const allViews = (): View[] => [
   { kind: 'all' },
   { kind: 'unassigned' },
   { kind: 'mine' },
   { kind: 'flagged' },
   { kind: 'done' },
   ...CATEGORIES.map((c) => ({ kind: 'category' as const, name: c.name })),
+  ...MY_FOLDERS.map((f) => ({ kind: 'myfolder' as const, name: f.name })),
   ...TEAM.map((m) => ({ kind: 'member' as const, email: m.email })),
 ];
 
 function Inbox({ user }: { user: User }) {
   const me = user.email!.toLowerCase();
   const triage = useTriage();
+  const foldersVersion = useFolders(me);
   const [mailbox, setMailbox] = useState<Mailbox>('all');
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const [next, setNext] = useState<string | undefined>();
@@ -108,7 +115,7 @@ function Inbox({ user }: { user: User }) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [dialog, setDialog] = useState<'sig' | 'templates' | 'compose' | 'keys' | null>(null);
+  const [dialog, setDialog] = useState<'sig' | 'templates' | 'compose' | 'keys' | 'folders' | null>(null);
   const [now, setNow] = useState(Date.now());
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -306,7 +313,7 @@ function Inbox({ user }: { user: User }) {
   const visible = useMemo(
     // When searching, show Done emails too so a search always finds them.
     () => threads.filter((t) => (search && view.kind === 'all') || matches(view, t, triage[t.key], me)),
-    [threads, triage, view, me, search],
+    [threads, triage, view, me, search, foldersVersion],
   );
 
   // After an email leaves the list (Done, reassigned…), open the next one: newer, older, or none.
@@ -327,9 +334,9 @@ function Inbox({ user }: { user: User }) {
   }, [visible, selected, advance]);
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
-    for (const v of ALL_VIEWS) c[viewId(v)] = threads.filter((t) => matches(v, t, triage[t.key], me)).length;
+    for (const v of allViews()) c[viewId(v)] = threads.filter((t) => matches(v, t, triage[t.key], me)).length;
     return c;
-  }, [threads, triage, me]);
+  }, [threads, triage, me, foldersVersion]);
 
   const bulk = (patch: Partial<Triage>) => {
     for (const t of threads.filter((x) => checked.has(x.threadId))) {
@@ -549,6 +556,7 @@ function Inbox({ user }: { user: User }) {
           onView={setView}
           counts={counts}
           onCompose={() => setDialog('compose')}
+          onFolderSettings={() => setDialog('folders')}
         />
         <ThreadList
             top={searchBox}
@@ -602,6 +610,7 @@ function Inbox({ user }: { user: User }) {
           <Agenda />
         </aside>
       )}
+      {dialog === 'folders' && <FoldersDialog email={me} onClose={() => setDialog(null)} />}
       {dialog === 'sig' && <SignatureDialog email={me} onClose={() => setDialog(null)} />}
       {dialog === 'templates' && <TemplatesDialog onClose={() => setDialog(null)} />}
       {dialog === 'keys' && (

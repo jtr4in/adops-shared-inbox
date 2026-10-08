@@ -12,7 +12,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
-import { categorize } from './config';
+import { CATEGORIES, categorize, DEFAULT_FOLDERS, setMyFolders, setSharedFolders, type Folder } from './config';
 
 // Shared triage state for one email thread, keyed by its first Message-ID so
 // Jason's and Riley's mailboxes land on the same document.
@@ -117,8 +117,31 @@ export function deleteTemplate(id: string) {
   return deleteDoc(doc(db, 'templates', id));
 }
 
-export const categoryOf = (t: { subject: string; snippet: string }, tr: Triage | undefined) =>
-  tr?.category || categorize(t.subject, t.snippet);
+export const categoryOf = (t: { subject: string; snippet: string; from?: string }, tr: Triage | undefined) =>
+  (tr?.category && CATEGORIES.some((c) => c.name === tr.category) ? tr.category : null) ?? categorize(t.subject, t.snippet, t.from);
+
+// Smart folder settings: AdOps folders are shared (config/folders), "My" folders live on the user's own doc.
+export function useFolders(email: string) {
+  const [version, bump] = useState(0);
+  useEffect(() => {
+    const a = onSnapshot(doc(db, 'config', 'folders'), (d) => {
+      const list = d.data()?.folders as Folder[] | undefined;
+      setSharedFolders(list ?? DEFAULT_FOLDERS);
+      bump((n) => n + 1);
+    }, () => {});
+    const b = onSnapshot(doc(db, 'users', email), (d) => {
+      setMyFolders((d.data()?.folders as Folder[] | undefined) ?? []);
+      bump((n) => n + 1);
+    });
+    return () => (a(), b());
+  }, [email]);
+  return version;
+}
+
+export const saveSharedFolders = (folders: Folder[]) =>
+  setDoc(doc(db, 'config', 'folders'), { folders, updatedBy: auth.currentUser?.email ?? '' });
+export const saveMyFolders = (email: string, folders: Folder[]) =>
+  setDoc(doc(db, 'users', email), { folders }, { merge: true });
 
 // Live presence: one doc per teammate saying which thread they have open and
 // whether they're writing a reply. Heartbeat keeps it fresh; stale = gone.
