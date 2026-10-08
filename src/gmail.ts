@@ -543,13 +543,25 @@ export async function openInSheets(a: Attachment): Promise<string> {
   const meta = { name: a.name.replace(/\.[^.]+$/, ''), mimeType: 'application/vnd.google-apps.spreadsheet' };
   const body = new FormData();
   body.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
-  body.append('file', new Blob([bytes], { type: a.mimeType || 'text/csv' }));
+  // Emails often label CSVs "application/octet-stream", which Drive won't convert: go by extension.
+  const types: Record<string, string> = {
+    csv: 'text/csv',
+    tsv: 'text/tab-separated-values',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    xls: 'application/vnd.ms-excel',
+    ods: 'application/vnd.oasis.opendocument.spreadsheet',
+  };
+  const type = types[a.name.split('.').pop()?.toLowerCase() ?? ''] ?? a.mimeType;
+  body.append('file', new Blob([bytes], { type }));
   const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
     method: 'POST', headers: { Authorization: `Bearer ${token}` }, body,
   });
   if (res.status === 401 || res.status === 403)
     throw new Error('Google needs one more permission for Sheets. Sign out and back in (or reconnect), then try again.');
-  if (!res.ok) throw new Error(`Drive upload failed (${res.status})`);
+  if (!res.ok) {
+    const why = (await res.json().catch(() => null))?.error?.message ?? '';
+    throw new Error(`Drive upload failed (${res.status}) ${why}`);
+  }
   const { id } = await res.json();
   return `https://docs.google.com/spreadsheets/d/${id}/edit`;
 }
