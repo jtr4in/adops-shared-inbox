@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isTeam() {
-      return request.auth != null && request.auth.token.email in ['jason.petrella@mrge.com', 'riley-miller.davis@mrge.com'];
+      return request.auth != null && request.auth.token.email in ['jason.petrella@mrge.com', 'riley.miller-davis@mrge.com'];
     }
 
     match /threads/{key} {
