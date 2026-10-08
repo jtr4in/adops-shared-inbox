@@ -237,3 +237,15 @@ body.dragging iframe { pointer-events: none; }
 .sheet th { background: #f1f3f6; position: sticky; top: -8px; }
 .sheet-tabs { display: flex; gap: 4px; padding: 6px 12px 0; }
 .sheet-tabs .active { font-weight: bold; border-bottom: 2px solid var(--accent); }
+/* Calendar agenda */
+.agenda { overflow-y: auto; flex: 1; padding: 4px 10px 12px; font-size: 13px; }
+.cal-msg { padding: 12px; }
+.ag-day { font-weight: bold; margin: 12px 0 4px; color: #444; }
+.ag-ev { border-left: 3px solid var(--accent); padding: 4px 8px; margin-bottom: 6px; background: #f7f9fc; border-radius: 4px; }
+.ag-ev.live { background: #e8f0fe; }
+.ag-row { cursor: pointer; display: flex; flex-direction: column; }
+.ag-time { font-size: 11px; color: #666; }
+.ag-title { font-weight: 500; }
+.ag-join { display: inline-block; margin-top: 4px; padding: 3px 10px; border-radius: 12px; background: #1a73e8; color: #fff !important; text-decoration: none; font-size: 12px; }
+.ag-detail { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+.ag-guest { font-size: 12px; }

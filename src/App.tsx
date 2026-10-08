@@ -1,3 +1,4 @@
+import { Agenda } from './components/Agenda';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { AUTH_EXPIRED, AUTH_RENEWED, auth, getGmailToken, signIn, signOut, tokenExpiresAt } from './firebase';
@@ -598,11 +599,7 @@ function Inbox({ user }: { user: User }) {
             </a>
             <button onClick={() => (setCalOpen(false), localStorage.setItem('calOpen', ''))}>×</button>
           </div>
-          {/* Google's embeddable calendar: shows your own calendar using the Google sign-in in this browser. */}
-          <iframe
-            title="Calendar"
-            src={`https://calendar.google.com/calendar/embed?src=${encodeURIComponent(me)}&mode=AGENDA&showTitle=0&showPrint=0&showTabs=1&showCalendars=0&ctz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`}
-          />
+          <Agenda />
         </aside>
       )}
       {dialog === 'sig' && <SignatureDialog email={me} onClose={() => setDialog(null)} />}
