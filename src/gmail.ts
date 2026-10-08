@@ -290,26 +290,7 @@ export async function listThreads(
 
 export async function getThread(threadId: string): Promise<Message[]> {
   const t = await gmail<{ messages: RawMessage[] }>(`/threads/${threadId}?format=full`);
-  const msgs = t.messages.map((m) => parse(m, true));
-  // Images embedded in the email (src="cid:...") live in attachments: swap in the real image.
-  await Promise.all(
-    msgs.map(async (m) => {
-      const embedded = new Set<Attachment>();
-      for (const a of m.attachments) {
-        if (!a.contentId || !m.html?.includes(`cid:${a.contentId}`)) continue;
-        try {
-          const url = `data:${a.mimeType};base64,${await getAttachmentData(a)}`;
-          m.html = m.html.split(`cid:${a.contentId}`).join(url);
-          embedded.add(a);
-        } catch {
-          /* leave the broken image */
-        }
-      }
-      // Embedded images show in the email itself, so don't list them as attachments too.
-      m.attachments = m.attachments.filter((a) => !embedded.has(a));
-    }),
-  );
-  return msgs;
+  return t.messages.map((m) => parse(m, true));
 }
 
 export async function markRead(messageIds: string[], threadId?: string) {
@@ -474,4 +455,32 @@ export function knownContacts(): Contact[] {
     /* ignore */
   }
   return [...map.values()].sort((a, b) => b.count - a.count);
+}
+
+// Fill in images pasted into emails (src="cid:..."). Runs after the email is already on
+// screen, so text shows instantly and screenshots pop in as they download.
+const imageCache = new Map<string, string>();
+export async function withInlineImages(msgs: Message[]): Promise<Message[]> {
+  const out = msgs.map((m) => ({ ...m }));
+  // Images embedded in the email (src="cid:...") live in attachments: swap in the real image.
+  await Promise.all(
+    out.map(async (m) => {
+      const embedded = new Set<Attachment>();
+      for (const a of m.attachments) {
+        if (!a.contentId || !m.html?.includes(`cid:${a.contentId}`)) continue;
+        try {
+          const k = `${a.messageId}/${a.attachmentId || a.contentId}`;
+          const url = imageCache.get(k) ?? `data:${a.mimeType};base64,${await getAttachmentData(a)}`;
+          imageCache.set(k, url);
+          m.html = m.html.split(`cid:${a.contentId}`).join(url);
+          embedded.add(a);
+        } catch {
+          /* leave the broken image */
+        }
+      }
+      // Embedded images show in the email itself, so don't list them as attachments too.
+      m.attachments = m.attachments.filter((a) => !embedded.has(a));
+    }),
+  );
+  return out;
 }

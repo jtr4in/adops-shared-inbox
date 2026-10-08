@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CATEGORIES, TEAM, teammateName } from '../config';
-import { setArchived, displayName, downloadAttachment, getThread, markRead, type Message, type ThreadSummary } from '../gmail';
+import { setArchived, displayName, downloadAttachment, getThread, markRead, withInlineImages, type Message, type ThreadSummary } from '../gmail';
 import { addNote, categoryOf, updateTriage, useNotes, type Presence, type Triage } from '../triage';
 import { formatDate } from './ThreadList';
 import { trackSelection } from '../selection';
@@ -31,6 +31,7 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
     getThread(summary.threadId)
       .then((m) => {
         setMessages(m);
+        withInlineImages(m).then(setMessages).catch(() => {});
         setOpen(new Set([m[m.length - 1].id]));
         markRead(m.filter((x) => x.unread).map((x) => x.id), summary.threadId).catch(() => {});
       })
