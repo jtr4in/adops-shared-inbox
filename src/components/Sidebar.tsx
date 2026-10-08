@@ -22,10 +22,11 @@ interface Props {
   view: View;
   onView: (v: View) => void;
   counts: Record<string, number>;
+  mailboxCounts?: Partial<Record<Mailbox, number>>;
   onCompose: () => void;
 }
 
-export function Sidebar({ mailbox, onMailbox, view, onView, counts, onCompose }: Props) {
+export function Sidebar({ mailbox, onMailbox, view, onView, counts, mailboxCounts = {}, onCompose }: Props) {
   const item = (v: View, label: string, icon: string) => (
     <button
       key={viewId(v)}
@@ -50,7 +51,10 @@ export function Sidebar({ mailbox, onMailbox, view, onView, counts, onCompose }:
           onClick={() => onMailbox(m.id)}
         >
           <span className="icon">{m.id === 'sent' ? '➤' : m.id === 'me' ? '☺' : '☰'}</span>
-          <span className="label">{m.label}</span>
+          <span className="label">
+            {m.label}
+            {mailboxCounts[m.id] !== undefined && ` (${mailboxCounts[m.id]})`}
+          </span>
         </button>
       ))}
       <div className="section">Inbox views</div>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { AUTH_EXPIRED, AUTH_RENEWED, auth, getGmailToken, signIn, signOut, tokenExpiresAt } from './firebase';
 import { CATEGORIES, DATE_RANGES, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, autoAssignee, type Mailbox } from './config';
-import { AuthExpiredError, displayName, listThreads, setArchived, type ThreadSummary } from './gmail';
+import { AuthExpiredError, countThreads, displayName, listThreads, setArchived, type ThreadSummary } from './gmail';
 import { categoryOf, updateTriage, usePresence, useReportPresence, useTriage, type Triage } from './triage';
 import { Sidebar, viewId, type View } from './components/Sidebar';
 import { ThreadList } from './components/ThreadList';
@@ -103,6 +103,7 @@ function Inbox({ user }: { user: User }) {
   const [lastSync, setLastSync] = useState<number | null>(null);
   const [view, setView] = useState<View>({ kind: 'all' });
   const [navOpen, setNavOpen] = useState(false);
+  const [mailboxCounts, setMailboxCounts] = useState<Partial<Record<Mailbox, number>>>({});
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -170,6 +171,12 @@ function Inbox({ user }: { user: User }) {
           return [...r.threads, ...cur.filter((t) => !fresh.has(t.threadId) && t.date < oldest)].sort((a, b) => b.date - a.date);
         });
         if (reset) setNext(r.next);
+        // Inbox counts for the mailbox list (Sent has no count).
+        Promise.all(
+          (['all', 'team', 'me'] as Mailbox[]).map(async (m) => [m, await countThreads(`${mailboxQuery(m, days)} in:inbox`)] as const),
+        )
+          .then((pairs) => setMailboxCounts(Object.fromEntries(pairs)))
+          .catch(() => {});
         setLastSync(Date.now());
       } catch (e) {
         if (!(e instanceof AuthExpiredError)) setError(String(e));
@@ -178,7 +185,7 @@ function Inbox({ user }: { user: User }) {
         setLoading(false);
       }
     },
-    [query, mailbox, search, notify],
+    [query, mailbox, search, notify, days],
   );
 
   // New mailbox or search: start over.
@@ -518,6 +525,7 @@ function Inbox({ user }: { user: User }) {
           view={view}
           onView={setView}
           counts={counts}
+          mailboxCounts={mailboxCounts}
           onCompose={() => setDialog('compose')}
         />
         <ThreadList
