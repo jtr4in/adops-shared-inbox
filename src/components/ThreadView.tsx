@@ -89,8 +89,7 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
             <button onClick={() => setReply('reply')}>Reply</button>
             <button onClick={() => setReply('forward')}>Forward</button>
           </div>
-          <span className="spacer" />
-          <div className="group">
+          <div className="group triage-group">
             <select
               className={`assignee ${triage?.assignee ? 'set' : ''}`}
               value={triage?.assignee ?? ''}

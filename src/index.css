@@ -109,6 +109,7 @@ button.wide { width: 100%; margin-bottom: 4px; padding: 8px; }
 input[type="checkbox"] { width: auto; margin: 0; }
 .actions { align-items: center; }
 .actions .group { display: flex; gap: 4px; align-items: center; }
+.actions .triage-group { margin-left: 10px; padding-left: 10px; border-left: 1px solid var(--border); }
 .icon-btn { width: 34px; padding: 5px 0; }
 .icon-btn.flagged { color: var(--flag); border-color: var(--flag); background: #fff4e5; }
 .assignee.set { color: var(--ok); border-color: var(--ok); font-weight: 600; }
@@ -188,6 +189,7 @@ body.dragging iframe { pointer-events: none; }
   .thread-head h2 { font-size: 16px; }
   .actions { gap: 6px; }
   .actions .spacer { display: none; }
+  .actions .triage-group { margin-left: 0; padding-left: 0; border-left: 0; }
   .actions .group { flex-wrap: wrap; }
   .thread-body { padding: 8px; }
   .message header .muted { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
