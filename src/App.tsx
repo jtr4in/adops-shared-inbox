@@ -104,6 +104,7 @@ function Inbox({ user }: { user: User }) {
   const foldersVersion = useFolders(me);
   const [mailbox, setMailbox] = useState<Mailbox>('all');
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
+  const extra = useRef(new Set<string>()); // threads added by "Load more"
   const [next, setNext] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -176,7 +177,8 @@ function Inbox({ user }: { user: User }) {
           const oldest = r.threads.at(-1)?.date ?? 0;
           if (reset || !oldest) return r.threads;
           const fresh = new Set(r.threads.map((t) => t.threadId));
-          return [...r.threads, ...cur.filter((t) => !fresh.has(t.threadId) && t.date < oldest)].sort((a, b) => b.date - a.date);
+          // Keep older emails, and everything "Load more" brought in, until the mailbox changes.
+          return [...r.threads, ...cur.filter((t) => !fresh.has(t.threadId) && (t.date < oldest || extra.current.has(t.threadId)))].sort((a, b) => b.date - a.date);
         });
         if (reset) setNext(r.next);
         setLastSync(Date.now());
@@ -193,6 +195,7 @@ function Inbox({ user }: { user: User }) {
   // New mailbox or search: start over.
   useEffect(() => {
     setThreads([]);
+    extra.current.clear();
     setChecked(new Set());
     seen.current = null;
     refresh(true);
@@ -299,6 +302,7 @@ function Inbox({ user }: { user: User }) {
     setLoading(true);
     try {
       const r = await listThreads(query, 75, next);
+      for (const t of r.threads) extra.current.add(t.threadId);
       setThreads((cur) => [...cur, ...r.threads.filter((t) => !cur.some((c) => c.threadId === t.threadId))]);
       setNext(r.next);
     } catch (e) {

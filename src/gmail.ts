@@ -294,7 +294,9 @@ export async function listThreads(
   );
   const newest = new Map<string, string>(); // threadId -> newest matching message id
   for (const m of list.messages ?? []) if (!newest.has(m.threadId)) newest.set(m.threadId, m.id);
-  const threads = await mapLimit([...newest].slice(0, max), 4, async ([id, latest]) => {
+  // Use every thread on this page: the next page starts after all of these messages, so
+  // anything cut here would never load.
+  const threads = await mapLimit([...newest], 4, async ([id, latest]) => {
     const hit = summaryCache.get(id);
     if (hit && hit.historyId === latest) return hit.summary;
     const full = await gmail<{ messages: RawMessage[] }>(`/threads/${id}?format=metadata&${META}`);
