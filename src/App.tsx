@@ -288,6 +288,23 @@ function Inbox({ user }: { user: User }) {
     () => threads.filter((t) => (search && view.kind === 'all') || matches(view, t, triage[t.key], me)),
     [threads, triage, view, me, search],
   );
+
+  // After an email leaves the list (Done, reassigned…), open the next one: newer, older, or none.
+  const [advance, setAdvance] = useState<'newer' | 'older' | 'list'>(
+    () => (localStorage.getItem('advance') as 'newer' | 'older' | 'list') || 'older',
+  );
+  const prevVisible = useRef<ThreadSummary[]>([]);
+  useEffect(() => {
+    const prev = prevVisible.current;
+    prevVisible.current = visible;
+    if (!selected || visible.some((t) => t.threadId === selected)) return;
+    const i = prev.findIndex((t) => t.threadId === selected);
+    if (i < 0) return;
+    // The list is newest first: newer is above, older is below.
+    const order = advance === 'newer' ? [...prev.slice(0, i)].reverse() : advance === 'older' ? prev.slice(i + 1) : [];
+    const next = order.find((t) => visible.some((v) => v.threadId === t.threadId));
+    setSelected(next ? next.threadId : null);
+  }, [visible, selected, advance]);
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
     for (const v of ALL_VIEWS) c[viewId(v)] = threads.filter((t) => matches(v, t, triage[t.key], me)).length;
@@ -452,6 +469,16 @@ function Inbox({ user }: { user: User }) {
                     {alertsOn ? '🔔 Desktop alerts: on' : '🔕 Desktop alerts: off'}
                   </button>
                 )}
+                <button
+                  onClick={() => {
+                    const next = advance === 'older' ? 'newer' : advance === 'newer' ? 'list' : 'older';
+                    setAdvance(next);
+                    localStorage.setItem('advance', next);
+                  }}
+                  title="Where to go after marking an email Done"
+                >
+                  ↪ After Done: {advance === 'older' ? 'next older email' : advance === 'newer' ? 'next newer email' : 'back to list'}
+                </button>
                 <button onClick={() => setDialog('keys')}>⌨ Keyboard shortcuts</button>
                 <hr />
                 <button onClick={signOut}>↩ Sign out</button>
