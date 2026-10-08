@@ -135,6 +135,11 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
     for (let i = 0; i <= mention.q.length; i++) sel.modify('extend', 'backward', 'character');
     const label = (c.name || c.email).replace(/</g, '&lt;');
     document.execCommand('insertHTML', false, `<a href="mailto:${c.email}">@${label}</a>&nbsp;`);
+    // Like Gmail: a mentioned person moves to To, so they're never in To and Cc/Bcc at once.
+    const drop = (list: string) =>
+      list.split(',').filter((p) => p.trim() && addresses(p)[0] !== c.email.toLowerCase()).map((p) => p.trim()).join(', ');
+    setCc(drop);
+    setBcc(drop);
     setTo((t) => (addresses(t).includes(c.email.toLowerCase()) ? t : t.trim() ? `${t.trim().replace(/,$/, '')}, ${c.email}` : c.email));
     setMention(null);
   };
