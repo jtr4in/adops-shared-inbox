@@ -26,8 +26,10 @@ export function Agenda() {
       const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${q}`, {
         headers: { Authorization: `Bearer ${getGmailToken()}` },
       });
-      if (res.status === 401 || res.status === 403)
-        return setErr('Calendar needs one more Google permission. Sign out and back in, then reopen this panel.');
+      if (res.status === 401 || res.status === 403) {
+        const why = (await res.json().catch(() => null))?.error?.message ?? '';
+        return setErr(`Google said (${res.status}): ${why || 'no permission'}. If it mentions a scope or permission, sign out and back in and tick every box Google shows.`);
+      }
       if (!res.ok) return setErr(`Couldn't load calendar (${res.status})`);
       const data = await res.json();
       setEvents((data.items as Ev[]).filter((e) => !e.attendees?.some((a) => a.self && a.responseStatus === 'declined')));
