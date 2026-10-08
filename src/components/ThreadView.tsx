@@ -195,7 +195,7 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
           />
         )}
 
-        {messages?.map((m) => (
+        {messages?.slice().reverse().map((m) => (
           <article key={m.id} className="message">
             <header onClick={() => toggle(m.id)}>
               <strong>{displayName(m.from)}</strong>
