@@ -1,4 +1,4 @@
-import { Clip } from './Clip';
+import { Clip, NoteIcon } from './Clip';
 import { useEffect, useRef, useState } from 'react';
 import { CATEGORIES, TEAM, teammateName } from '../config';
 import { setArchived, displayName, downloadAttachment, getThread, markRead, withInlineImages, type Attachment, type Message, type ThreadSummary } from '../gmail';
@@ -115,8 +115,8 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
             >
               ⚑
             </button>
-            <button className="icon-btn" title="Private note" onClick={() => openNotes()}>
-              🔒
+            <button className="icon-btn" title="Team notes" onClick={() => openNotes()}>
+              <NoteIcon />
             </button>
             <button className={triage?.done ? 'on' : 'done-btn'} onClick={toggleDone}>
               {triage?.done ? 'Reopen' : '✓ Done'}
@@ -160,7 +160,7 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
         {!messages && !error && <div className="muted">Loading…</div>}
         {(notes.length > 0 || notesOpen) && <div className={`notes ${notesOpen ? 'open' : ''}`}>
           <button className="notes-toggle" onClick={() => setNotesOpen(!notesOpen)}>
-            🔒 Team notes{notes.length ? ` (${notes.length})` : ''} <span className="muted small">only visible here, never emailed</span>
+            <NoteIcon /> Team notes{notes.length ? ` (${notes.length})` : ''} <span className="muted small">only visible here, never emailed</span>
             <span className="spacer" />
             {notesOpen ? '▴' : '▾'}
           </button>
