@@ -3,7 +3,7 @@ import { Agenda } from './components/Agenda';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { AUTH_EXPIRED, AUTH_RENEWED, auth, getGmailToken, signIn, signOut, tokenExpiresAt } from './firebase';
-import { CATEGORIES, folderMatches, MY_FOLDERS, DATE_RANGES, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, autoAssignee, type Mailbox } from './config';
+import { CATEGORIES, folderMatches, folderText, MY_FOLDERS, DATE_RANGES, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, autoAssignee, type Mailbox } from './config';
 import { AuthExpiredError, displayName, listThreads, setArchived, type ThreadSummary } from './gmail';
 import { categoryOf, useFolders, updateTriage, usePresence, useReportPresence, useTriage, type Triage } from './triage';
 import { Sidebar, viewId, type View } from './components/Sidebar';
@@ -82,7 +82,7 @@ function matches(view: View, t: ThreadSummary, tr: Triage | undefined, me: strin
       return categoryOf(t, tr) === view.name;
     case 'myfolder': {
       const f = MY_FOLDERS.find((x) => x.name === view.name);
-      return !!f && folderMatches(f, `${t.subject} ${t.snippet} ${t.from}`);
+      return !!f && folderMatches(f, folderText(t));
     }
   }
 }

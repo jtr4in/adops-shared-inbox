@@ -97,6 +97,10 @@ export interface ThreadSummary {
   people: number; // distinct addresses across the chain
   firstTo: string[];
   inInbox: boolean;
+  // For smart folders: every address in the chain and the first email's preview, so a folder
+  // keeps matching after we reply (when the newest sender and preview are ours).
+  participants?: string;
+  firstSnippet?: string;
   hasFiles?: boolean; // some message has attachments // in this person's Gmail inbox (not archived) // To of the first message, for smart assignment
 }
 
@@ -208,7 +212,7 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
 // Thread summaries cached by threadId + historyId, so a refresh only
 // re-fetches threads that actually changed.
 // Kept in this browser (localStorage) so reopening the app doesn't re-download every email.
-const CACHE_KEY = 'summaryCache:v3';
+const CACHE_KEY = 'summaryCache:v4';
 const summaryCache = new Map<string, { historyId: string; summary: ThreadSummary }>(
   (() => {
     try {
@@ -249,6 +253,8 @@ function summarize(t: { messages: RawMessage[] }): ThreadSummary {
       (t.messages[t.messages.length - 1].labelIds?.includes('SENT') ?? false) &&
       !addresses(last.from).some((a) => GROUP_ADDRESSES.includes(a)),
     people: chainPeople(msgs).length,
+    participants: chainPeople(msgs).join(', '),
+    firstSnippet: first.snippet,
     firstTo: addresses(first.to),
     inInbox: t.messages.some((m) => m.labelIds?.includes('INBOX')),
     hasFiles: t.messages.some((m) => m.payload?.mimeType === 'multipart/mixed'),

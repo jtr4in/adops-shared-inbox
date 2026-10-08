@@ -12,7 +12,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
-import { CATEGORIES, categorize, DEFAULT_FOLDERS, setMyFolders, setSharedFolders, type Folder } from './config';
+import { CATEGORIES, categorize, folderText, DEFAULT_FOLDERS, setMyFolders, setSharedFolders, type Folder } from './config';
 
 // Shared triage state for one email thread, keyed by its first Message-ID so
 // Jason's and Riley's mailboxes land on the same document.
@@ -117,8 +117,8 @@ export function deleteTemplate(id: string) {
   return deleteDoc(doc(db, 'templates', id));
 }
 
-export const categoryOf = (t: { subject: string; snippet: string; from?: string }, tr: Triage | undefined) =>
-  (tr?.category && CATEGORIES.some((c) => c.name === tr.category) ? tr.category : null) ?? categorize(t.subject, t.snippet, t.from);
+export const categoryOf = (t: Parameters<typeof folderText>[0], tr: Triage | undefined) =>
+  (tr?.category && CATEGORIES.some((c) => c.name === tr.category) ? tr.category : null) ?? categorize(folderText(t));
 
 // Smart folder settings: AdOps folders are shared (config/folders), "My" folders live on the user's own doc.
 export function useFolders(email: string) {

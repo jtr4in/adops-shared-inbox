@@ -112,8 +112,11 @@ export function folderMatches(f: Folder, text: string): boolean {
   return !!re && re.test(text);
 }
 
-export function categorize(subject: string, snippet: string, from = ''): string {
-  const text = `${subject} ${snippet} ${from}`;
+// Text a folder's keywords are checked against: subject, latest + first preview, everyone on the chain.
+export const folderText = (t: { subject: string; snippet: string; from?: string; firstSnippet?: string; participants?: string }) =>
+  `${t.subject} ${t.snippet} ${t.firstSnippet ?? ''} ${t.from ?? ''} ${t.participants ?? ''}`;
+
+export function categorize(text: string): string {
   return shared.find((f) => folderMatches(f, text))?.name ?? FALLBACK_FOLDER;
 }
 
