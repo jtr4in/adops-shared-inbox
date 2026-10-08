@@ -254,3 +254,4 @@ body.dragging iframe { pointer-events: none; }
 .mention-menu { position: fixed; z-index: 60; background: #fff; border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.15); min-width: 240px; max-width: 360px; font-size: 13px; padding: 4px 0; }
 .mention-menu > div { padding: 5px 10px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mention-menu > div.on, .mention-menu > div:hover { background: #e8f0fe; }
+.nudge { color: #e37400; font-weight: 600; font-size: 12px; white-space: nowrap; margin-right: 6px; }

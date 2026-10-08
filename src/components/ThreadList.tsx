@@ -130,6 +130,14 @@ export function ThreadList(p: Props) {
               {tr?.assignee && <span className="chip assigned">{teammateName(tr.assignee).split(' ')[0]}</span>}
               {tr?.done && <span className="chip done">Done</span>}
               {t.sent && <span className="chip sent">Sent</span>}
+              {(() => {
+                // Gmail-style nudge: our message is the last one and nobody has replied for 3+ days.
+                const ours = t.sent || addresses(t.from).some((a) => TEAM.some((m) => m.aliases.includes(a)));
+                const days = Math.floor((Date.now() - t.date) / 864e5);
+                return ours && !tr?.done && days >= 3 && days <= 30 ? (
+                  <span className="nudge">Sent {days} days ago. Follow up?</span>
+                ) : null;
+              })()}
               <span className="line" title={`${chip ?? ''} · ${short(categoryOf(t, tr))}`}>
                 <span className="subject">{t.subject}</span>
                 <span className="snippet"> - {t.snippet}</span>
