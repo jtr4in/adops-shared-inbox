@@ -200,6 +200,24 @@ function Inbox({ user }: { user: User }) {
     }
   }, [threads, triage]);
 
+  // Keep both inboxes the same: when a teammate marks an email Done, archive it in my Gmail
+  // too; when they reopen it, put it back in my inbox.
+  const synced = useRef(new Set<string>());
+  useEffect(() => {
+    for (const t of threads) {
+      const tr = triage[t.key];
+      if (!tr || tr.updatedBy === me) continue;
+      const want = !tr.done; // should it be in my inbox?
+      if (t.inInbox === want) continue;
+      const tag = `${t.threadId}:${want}`;
+      if (synced.current.has(tag)) continue;
+      synced.current.add(tag);
+      setArchived(t.threadId, !want)
+        .then(() => setThreads((cur) => cur.map((x) => (x.threadId === t.threadId ? { ...x, inInbox: want } : x))))
+        .catch(() => synced.current.delete(tag));
+    }
+  }, [threads, triage, me]);
+
   // A new reply on a Done email reopens it, so it can't hide from the team.
   useEffect(() => {
     for (const t of threads) {
