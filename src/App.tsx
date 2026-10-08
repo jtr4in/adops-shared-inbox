@@ -103,6 +103,7 @@ function Inbox({ user }: { user: User }) {
   const [lastSync, setLastSync] = useState<number | null>(null);
   const [view, setView] = useState<View>({ kind: 'all' });
   const [navOpen, setNavOpen] = useState(false);
+  const [calOpen, setCalOpen] = useState(() => !!localStorage.getItem('calOpen'));
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -452,6 +453,16 @@ function Inbox({ user }: { user: User }) {
         </div>
         <span className="spacer" />
         <button
+          className={calOpen ? 'on' : ''}
+          title="Show your Google Calendar"
+          onClick={() => {
+            setCalOpen(!calOpen);
+            localStorage.setItem('calOpen', calOpen ? '' : '1');
+          }}
+        >
+          📅
+        </button>
+        <button
           className="mb-search"
           title="Highlight text anywhere (even inside an email), then click to search MaxBounty admin"
           onMouseDown={(e) => e.preventDefault()}
@@ -577,6 +588,23 @@ function Inbox({ user }: { user: User }) {
           <div className="center muted">Select an email</div>
         )}
       </div>
+      {calOpen && (
+        <aside className="cal-panel">
+          <div className="cal-head">
+            <strong>Calendar</strong>
+            <span className="spacer" />
+            <a href="https://calendar.google.com/calendar/r" target="_blank" rel="noreferrer" className="small">
+              Open ↗
+            </a>
+            <button onClick={() => (setCalOpen(false), localStorage.setItem('calOpen', ''))}>×</button>
+          </div>
+          {/* Google's embeddable calendar: shows your own calendar using the Google sign-in in this browser. */}
+          <iframe
+            title="Calendar"
+            src={`https://calendar.google.com/calendar/embed?src=${encodeURIComponent(me)}&mode=AGENDA&showTitle=0&showPrint=0&showTabs=1&showCalendars=0&ctz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`}
+          />
+        </aside>
+      )}
       {dialog === 'sig' && <SignatureDialog email={me} onClose={() => setDialog(null)} />}
       {dialog === 'templates' && <TemplatesDialog onClose={() => setDialog(null)} />}
       {dialog === 'keys' && (
