@@ -77,6 +77,8 @@ export interface Attachment {
   name: string;
   mimeType: string;
   size: number;
+  contentId?: string; // set for images embedded in the email body (cid:)
+  data?: string; // small parts arrive inline instead of by attachmentId
 }
 
 export interface ThreadSummary {
@@ -113,17 +115,28 @@ function findPart(p: Part, mime: string): Part | undefined {
 }
 
 function attachmentsOf(p: Part, messageId: string): Attachment[] {
-  const own =
-    p.filename && p.body?.attachmentId
-      ? [{ messageId, attachmentId: p.body.attachmentId, name: p.filename, mimeType: p.mimeType, size: p.body.size }]
+  const cid = header(p, 'Content-ID').replace(/[<>]/g, '');
+  const own: Attachment[] =
+    (p.filename || cid) && (p.body?.attachmentId || (cid && p.body?.data))
+      ? [
+          {
+            messageId,
+            attachmentId: p.body?.attachmentId ?? '',
+            name: p.filename || cid,
+            mimeType: p.mimeType,
+            size: p.body?.size ?? 0,
+            contentId: cid || undefined,
+            data: p.body?.data,
+          },
+        ]
       : [];
   return own.concat(...(p.parts ?? []).map((c) => attachmentsOf(c, messageId)));
 }
 
 // Returns standard base64 (not base64url), ready for a MIME part or a data URL.
 export async function getAttachmentData(a: Attachment): Promise<string> {
-  const r = await gmail<{ data: string }>(`/messages/${a.messageId}/attachments/${a.attachmentId}`);
-  return r.data.replace(/-/g, '+').replace(/_/g, '/');
+  const raw = a.data ?? (await gmail<{ data: string }>(`/messages/${a.messageId}/attachments/${a.attachmentId}`)).data;
+  return raw.replace(/-/g, '+').replace(/_/g, '/');
 }
 
 export async function downloadAttachment(a: Attachment) {
@@ -277,7 +290,26 @@ export async function listThreads(
 
 export async function getThread(threadId: string): Promise<Message[]> {
   const t = await gmail<{ messages: RawMessage[] }>(`/threads/${threadId}?format=full`);
-  return t.messages.map((m) => parse(m, true));
+  const msgs = t.messages.map((m) => parse(m, true));
+  // Images embedded in the email (src="cid:...") live in attachments: swap in the real image.
+  await Promise.all(
+    msgs.map(async (m) => {
+      const embedded = new Set<Attachment>();
+      for (const a of m.attachments) {
+        if (!a.contentId || !m.html?.includes(`cid:${a.contentId}`)) continue;
+        try {
+          const url = `data:${a.mimeType};base64,${await getAttachmentData(a)}`;
+          m.html = m.html.split(`cid:${a.contentId}`).join(url);
+          embedded.add(a);
+        } catch {
+          /* leave the broken image */
+        }
+      }
+      // Embedded images show in the email itself, so don't list them as attachments too.
+      m.attachments = m.attachments.filter((a) => !embedded.has(a));
+    }),
+  );
+  return msgs;
 }
 
 export async function markRead(messageIds: string[], threadId?: string) {
