@@ -63,6 +63,7 @@ export interface Message {
   to: string;
   cc: string;
   bcc?: string;
+  replyTo?: string; // where replies should go (groups put the real sender here)
   subject: string;
   date: number;
   snippet: string;
@@ -173,6 +174,8 @@ function parse(m: RawMessage, withBody: boolean): Message {
     to: header(p, 'To'),
     cc: header(p, 'Cc'),
     bcc: header(p, 'Bcc'), // only present on emails you sent
+    // "X via MB_adops" <adops@> mail: Google Groups keeps the real sender in Reply-To or X-Original-Sender.
+    replyTo: header(p, 'Reply-To') || header(p, 'X-Original-Sender'),
     subject: header(p, 'Subject'),
     date: Number(m.internalDate),
     snippet: m.snippet,

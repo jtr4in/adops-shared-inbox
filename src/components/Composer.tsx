@@ -40,7 +40,12 @@ function recipients(mode: ReplyMode, last: Message | undefined, mineAll: string[
   };
   const fromMe = addresses(last.from).some((a) => mine.includes(a));
   // Replying to our own last message goes back to whoever we sent it to.
-  const primary = fromMe ? addresses(last.to) : addresses(last.from);
+  // Reply to the real sender: when the group relayed it, From is adops@ and the person is in Reply-To.
+  const sender = (() => {
+    const rt = addresses(last.replyTo ?? '').filter((a) => !GROUP_ADDRESSES.includes(a));
+    return rt.length ? rt : addresses(last.from);
+  })();
+  const primary = fromMe ? addresses(last.to) : sender;
   if (mode === 'reply') return keepGroup({ to: primary.filter((a) => !GROUP_ADDRESSES.includes(a) || primary.length === 1), cc: [] });
   const notMe = (a: string) => !mine.includes(a);
   const to = uniq([...primary, ...(fromMe ? [] : addresses(last.to))]).filter(notMe);
