@@ -443,9 +443,3 @@ export function knownContacts(): Contact[] {
   }
   return [...map.values()].sort((a, b) => b.count - a.count);
 }
-
-// Rough count of conversations matching a search (Gmail's own estimate; one cheap call).
-export async function countThreads(q: string): Promise<number> {
-  const r = await gmail<{ resultSizeEstimate?: number }>(`/threads?maxResults=1&q=${encodeURIComponent(q)}`);
-  return r.resultSizeEstimate ?? 0;
-}
