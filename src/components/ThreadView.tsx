@@ -21,6 +21,11 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
   const [reply, setReply] = useState<ReplyMode | null>(null);
   const notes = useNotes(summary.key);
   const [note, setNote] = useState('');
+  const [notesOpen, setNotesOpen] = useState(false);
+  const openNotes = () => {
+    setNotesOpen(true);
+    setTimeout(() => notesRef.current?.focus(), 0);
+  };
 
   const load = () =>
     getThread(summary.threadId)
@@ -58,7 +63,7 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
       if (a === 'done') toggleDone();
       if (a === 'flag') set({ flagged: !triage?.flagged });
       if (a === 'assignMe') set({ assignee: me });
-      if (a === 'note') notesRef.current?.focus();
+      if (a === 'note') openNotes();
     };
     window.addEventListener('thread-action', on);
     return () => window.removeEventListener('thread-action', on);
@@ -103,7 +108,7 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
             >
               ⚑
             </button>
-            <button className="icon-btn" title="Private note" onClick={() => notesRef.current?.focus()}>
+            <button className="icon-btn" title="Private note" onClick={() => openNotes()}>
               🔒
             </button>
             <button className={triage?.done ? 'on' : 'done-btn'} onClick={toggleDone}>
@@ -146,6 +151,34 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
       <div className="thread-body">
         {error && <div className="error">{error}</div>}
         {!messages && !error && <div className="muted">Loading…</div>}
+        <div className={`notes ${notesOpen ? 'open' : ''}`}>
+          <button className="notes-toggle" onClick={() => setNotesOpen(!notesOpen)}>
+            🔒 Team notes{notes.length ? ` (${notes.length})` : ''} <span className="muted small">only visible here, never emailed</span>
+            <span className="spacer" />
+            {notesOpen ? '▴' : '▾'}
+          </button>
+          {notesOpen && (
+          <>
+          {notes.map((n) => (
+            <div key={n.id} className="note">
+              <strong>{teammateName(n.author)}</strong>
+              <span className="muted small"> {n.createdAt && formatDate(n.createdAt.toMillis())}</span>
+              <div>{n.text}</div>
+            </div>
+          ))}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!note.trim()) return;
+              addNote(summary.key, note.trim());
+              setNote('');
+            }}
+          >
+            <input ref={notesRef} placeholder="Add a private note for the team…" value={note} onChange={(e) => setNote(e.target.value)} />
+          </form>
+          </>
+          )}
+        </div>
         {reply && messages && (
           <Composer
             key={reply}
@@ -192,26 +225,6 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
           </article>
         ))}
 
-        <div className="notes">
-          <div className="section">Team notes (only visible here, never emailed)</div>
-          {notes.map((n) => (
-            <div key={n.id} className="note">
-              <strong>{teammateName(n.author)}</strong>
-              <span className="muted small"> {n.createdAt && formatDate(n.createdAt.toMillis())}</span>
-              <div>{n.text}</div>
-            </div>
-          ))}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!note.trim()) return;
-              addNote(summary.key, note.trim());
-              setNote('');
-            }}
-          >
-            <input ref={notesRef} placeholder="Add a private note for the team…" value={note} onChange={(e) => setNote(e.target.value)} />
-          </form>
-        </div>
       </div>
     </section>
   );
