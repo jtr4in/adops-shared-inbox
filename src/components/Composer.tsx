@@ -37,6 +37,12 @@ function recipients(mode: ReplyMode, last: Message | undefined, mineAll: string[
   const mine = mineAll.filter((a) => !GROUP_ADDRESSES.includes(a));
   const keepGroup = (r: { to: string[]; cc: string[] }) => {
     const groups = GROUP_ADDRESSES.filter((g) => thread.some((m) => [...addresses(m.to), ...addresses(m.cc)].includes(g)));
+    // The shared inbox goes in Cc, not To (unless it's the only recipient).
+    const people = r.to.filter((a) => !GROUP_ADDRESSES.includes(a));
+    if (people.length) {
+      for (const g of r.to.filter((a) => GROUP_ADDRESSES.includes(a))) groups.push(g);
+      r.to = people;
+    }
     for (const g of groups) if (!r.to.includes(g) && !r.cc.includes(g)) r.cc.push(g);
     return r;
   };
