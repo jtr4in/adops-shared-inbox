@@ -255,6 +255,8 @@ function Inbox({ user }: { user: User }) {
     let busyRenew = false;
     const onClick = () => {
       if (busyRenew || tokenExpiresAt() - Date.now() > 15 * 60_000) return;
+      // Never interrupt while writing an email (unless it has fully lapsed and Send would fail).
+      if (document.querySelector('.composer') && getGmailToken()) return;
       busyRenew = true;
       signIn()
         .catch(() => {})
