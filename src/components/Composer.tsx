@@ -275,6 +275,22 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
         className="editor"
         contentEditable
         suppressContentEditableWarning
+        onPaste={(e) => {
+          // Some "copy" buttons put invisible or broken HTML on the clipboard, which pastes as
+          // nothing. If the HTML has no visible text, or the copy is just a link, paste plain text.
+          const text = e.clipboardData.getData('text/plain');
+          const html = e.clipboardData.getData('text/html');
+          if (!text) return;
+          const visible = html ? new DOMParser().parseFromString(html, 'text/html').body.innerText.trim() : text;
+          const url = /^https?:\/\/\S+$/.test(text.trim());
+          if (!visible || url) {
+            e.preventDefault();
+            if (url) {
+              const a = text.trim().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+              document.execCommand('insertHTML', false, `<a href="${a}">${a}</a>`);
+            } else document.execCommand('insertText', false, text);
+          }
+        }}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           if (e.dataTransfer.files.length) {
