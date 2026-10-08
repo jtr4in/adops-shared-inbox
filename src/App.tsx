@@ -3,7 +3,7 @@ import { Agenda } from './components/Agenda';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { AUTH_EXPIRED, AUTH_RENEWED, auth, getGmailToken, signIn, signOut, tokenExpiresAt } from './firebase';
-import { CATEGORIES, folderMatches, folderText, MY_FOLDERS, DATE_RANGES, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, autoAssignee, type Mailbox } from './config';
+import { CATEGORIES, MY_FOLDERS, DATE_RANGES, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, autoAssignee, type Mailbox } from './config';
 import { AuthExpiredError, displayName, listThreads, setArchived, type ThreadSummary } from './gmail';
 import { categoryOf, useFolders, updateTriage, usePresence, useReportPresence, useTriage, type Triage } from './triage';
 import { Sidebar, viewId, type View } from './components/Sidebar';
@@ -80,10 +80,8 @@ function matches(view: View, t: ThreadSummary, tr: Triage | undefined, me: strin
       return !done && tr?.assignee === view.email;
     case 'category':
       return categoryOf(t, tr) === view.name;
-    case 'myfolder': {
-      const f = MY_FOLDERS.find((x) => x.name === view.name);
-      return !!f && folderMatches(f, folderText(t));
-    }
+    case 'myfolder':
+      return true; // already filtered by the Gmail search (see query)
   }
 }
 
@@ -94,7 +92,6 @@ const allViews = (): View[] => [
   { kind: 'flagged' },
   { kind: 'done' },
   ...CATEGORIES.map((c) => ({ kind: 'category' as const, name: c.name })),
-  ...MY_FOLDERS.map((f) => ({ kind: 'myfolder' as const, name: f.name })),
   ...TEAM.map((m) => ({ kind: 'member' as const, email: m.email })),
 ];
 
@@ -125,8 +122,14 @@ function Inbox({ user }: { user: User }) {
     const base = mailboxQuery(mailbox, days, me);
     // "all:" searches your whole Gmail, ignoring the mailbox filter.
     if (search.startsWith('all:')) return search.slice(4).trim() || base;
-    return search ? `${base} ${search}` : base;
-  }, [mailbox, search, days, me]);
+    // My folders run as a Gmail search, so they find every matching email (any sender,
+    // recipient or word in the body), not just the ones already loaded in the list.
+    const folder = view.kind === 'myfolder' ? MY_FOLDERS.find((f) => f.name === view.name) : undefined;
+    const words = folder?.keywords.split(',').map((w) => w.trim()).filter(Boolean)
+      .map((w) => (/\s/.test(w) ? `"${w.replace(/"/g, '')}"` : w));
+    const withFolder = words?.length ? `${base} {${words.join(' ')}}` : base;
+    return search ? `${withFolder} ${search}` : withFolder;
+  }, [mailbox, search, days, me, view, foldersVersion]);
 
   // Desktop alerts for new mail and for things assigned to you by a teammate.
   const [alertsOn, setAlertsOn] = useState(() => 'Notification' in window && Notification.permission === 'granted');
