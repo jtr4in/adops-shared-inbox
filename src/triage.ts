@@ -49,11 +49,14 @@ export function useTriage(): Record<string, Triage> {
 }
 
 export function updateTriage(key: string, subject: string, patch: Partial<Triage>) {
-  return setDoc(
+  const p = setDoc(
     doc(db, 'threads', key),
     { ...patch, subject, updatedBy: auth.currentUser?.email ?? '', updatedAt: serverTimestamp() },
     { merge: true },
   );
+  // Never fail silently: tell the person why a Done/assign/flag didn't save.
+  p.catch((e) => alert(`Couldn't save that change (signed in as ${auth.currentUser?.email}).\n\n${e}`));
+  return p;
 }
 
 export function useNotes(key: string | undefined): Note[] {
