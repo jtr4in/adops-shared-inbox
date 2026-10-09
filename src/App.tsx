@@ -63,6 +63,29 @@ export default function App() {
   return <Inbox user={user} />;
 }
 
+// Last list per mailbox/folder/search, kept in the browser for instant switching.
+const LIST_KEY = 'listCache:v1';
+function readLists(): Record<string, { at: number; threads: ThreadSummary[] }> {
+  try {
+    return JSON.parse(localStorage.getItem(LIST_KEY) ?? '{}');
+  } catch {
+    return {};
+  }
+}
+function loadList(q: string): ThreadSummary[] {
+  return readLists()[q]?.threads ?? [];
+}
+function saveList(q: string, threads: ThreadSummary[]) {
+  const all = readLists();
+  all[q] = { at: Date.now(), threads: threads.slice(0, 150) };
+  const keep = Object.entries(all).sort((a, b) => b[1].at - a[1].at).slice(0, 8);
+  try {
+    localStorage.setItem(LIST_KEY, JSON.stringify(Object.fromEntries(keep)));
+  } catch {
+    localStorage.removeItem(LIST_KEY); // full: start fresh rather than break
+  }
+}
+
 function matches(view: View, t: ThreadSummary, tr: Triage | undefined, me: string) {
   const done = !!tr?.done;
   switch (view.kind) {
@@ -101,6 +124,9 @@ function Inbox({ user }: { user: User }) {
   const foldersVersion = useFolders(me);
   const [mailbox, setMailbox] = useState<Mailbox>('all');
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
+  const pending = useRef<boolean | 'soft'>(false);
+  const refreshRef = useRef<(reset?: boolean) => void>(() => {});
+  const latestQuery = useRef('');
   const extra = useRef(new Set<string>()); // threads added by "Load more"
   const [next, setNext] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
@@ -162,12 +188,19 @@ function Inbox({ user }: { user: User }) {
   const busy = useRef(false);
   const refresh = useCallback(
     async (reset = false) => {
-      if (busy.current || !getGmailToken()) return;
+      if (!getGmailToken()) return;
+      if (busy.current) {
+        // Don't drop it (e.g. you switched mailbox mid-sync): run again when this one finishes.
+        pending.current = reset || pending.current || 'soft';
+        return;
+      }
       busy.current = true;
+      const asked = query;
       setLoading(true);
       setError('');
       try {
         const r = await listThreads(query, 75);
+        if (asked !== latestQuery.current) return; // you switched away meanwhile
         if (mailbox !== 'sent' && !search) {
           if (seen.current) {
             const fresh = r.threads.filter((t) => !seen.current!.has(t.threadId) && !t.sent);
@@ -190,14 +223,25 @@ function Inbox({ user }: { user: User }) {
       } finally {
         busy.current = false;
         setLoading(false);
+        const again = pending.current;
+        pending.current = false;
+        if (again) setTimeout(() => refreshRef.current(again === true), 0);
       }
     },
     [query, mailbox, search, notify],
   );
 
-  // New mailbox or search: start over.
+  refreshRef.current = refresh;
+  latestQuery.current = query;
+
+  // Remember each mailbox/folder's list so switching back shows it instantly, then syncs.
   useEffect(() => {
-    setThreads([]);
+    if (threads.length) saveList(query, threads);
+  }, [threads, query]);
+
+  // New mailbox or search: show what we had for it last time, then refresh.
+  useEffect(() => {
+    setThreads(loadList(query));
     extra.current.clear();
     setChecked(new Set());
     seen.current = null;
