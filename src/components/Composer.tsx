@@ -15,7 +15,8 @@ import {
   type SendAs,
 } from '../gmail';
 import { AddressInput } from './AddressInput';
-import { GROUP_ADDRESSES } from '../config';
+import { GROUP_ADDRESSES, TEAM } from '../config';
+import { auth } from '../firebase';
 import { saveTemplate, useSignature, useTemplates } from '../triage';
 
 export type ReplyMode = 'reply' | 'replyAll' | 'forward' | 'new';
@@ -60,6 +61,14 @@ function recipients(mode: ReplyMode, last: Message | undefined, mineAll: string[
   const to = uniq([...primary, ...(fromMe ? [] : addresses(last.to))]).filter(notMe);
   const cc = uniq(addresses(last.cc)).filter((a) => notMe(a) && !to.includes(a));
   return keepGroup({ to, cc });
+}
+
+// Gmail leaves the name blank for your main address, so outgoing mail showed just
+// "jason.petrella@mrge.com". Fall back to the teammate's name, then your Google name.
+function nameFor(sa: SendAs | undefined, email: string): string {
+  if (sa?.displayName) return sa.displayName;
+  const e = email.toLowerCase();
+  return TEAM.find((t) => t.aliases.includes(e))?.name ?? auth.currentUser?.displayName ?? email;
 }
 
 function quote(m: Message, forward: boolean) {
@@ -251,7 +260,7 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
       ];
       const isReply = (mode === 'reply' || mode === 'replyAll') && last;
       await send({
-        from: sa?.displayName ? `"${sa.displayName}" <${from}>` : from,
+        from: `"${nameFor(sa, from).replace(/"/g, '')}" <${from}>`,
         to: addresses(to),
         cc: addresses(cc),
         bcc: addresses(bcc),
@@ -298,7 +307,7 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
         <select value={from} onChange={(e) => setFrom(e.target.value)}>
           {sendAs.map((s) => (
             <option key={s.sendAsEmail} value={s.sendAsEmail}>
-              {s.displayName ? `${s.displayName} <${s.sendAsEmail}>` : s.sendAsEmail}
+              {`${nameFor(s, s.sendAsEmail)} <${s.sendAsEmail}>`}
             </option>
           ))}
         </select>
