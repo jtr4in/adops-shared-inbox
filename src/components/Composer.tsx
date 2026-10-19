@@ -68,7 +68,8 @@ function recipients(mode: ReplyMode, last: Message | undefined, mineAll: string[
 function nameFor(sa: SendAs | undefined, email: string): string {
   if (sa?.displayName) return sa.displayName;
   const e = email.toLowerCase();
-  return TEAM.find((t) => t.aliases.includes(e))?.name ?? auth.currentUser?.displayName ?? email;
+  const team = TEAM.find((t) => t.aliases.includes(e))?.name;
+  return (team && !team.includes('@') ? team : auth.currentUser?.displayName) || email;
 }
 
 function quote(m: Message, forward: boolean) {
