@@ -41,5 +41,10 @@ jobs:
             EMAILS=$(node -e 'console.log(process.env.TEAM.split(",").map(e=>e.split(":")[0].split("|")[0].trim()).join(","))')
             printf 'GOOGLE_CLIENT_ID=%s\nTEAM_EMAILS=%s\n' "$CLIENT_ID" "$EMAILS" > functions/.env
           fi
+          set -o pipefail
           GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx -y firebase-tools@latest deploy \
-            --only "$ONLY" --project "${{ secrets.VITE_FIREBASE_PROJECT_ID }}" --non-interactive --force
+            --only "$ONLY" --project "${{ secrets.VITE_FIREBASE_PROJECT_ID }}" --non-interactive --force 2>&1 | tee "$RUNNER_TEMP/deploy.log" || {
+            # Surface the reason as annotations (shown on the run page and readable via the API).
+            grep -iE "error|denied|permission|not enabled|required|failed" "$RUNNER_TEMP/deploy.log" | tail -15 | while read -r l; do echo "::error::$l"; done
+            exit 1
+          }
