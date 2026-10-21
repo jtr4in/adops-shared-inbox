@@ -42,4 +42,4 @@ jobs:
             printf 'GOOGLE_CLIENT_ID=%s\nTEAM_EMAILS=%s\n' "$CLIENT_ID" "$EMAILS" > functions/.env
           fi
           GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx -y firebase-tools@latest deploy \
-            --only "$ONLY" --project "${{ secrets.VITE_FIREBASE_PROJECT_ID }}" --non-interactive
+            --only "$ONLY" --project "${{ secrets.VITE_FIREBASE_PROJECT_ID }}" --non-interactive --force
