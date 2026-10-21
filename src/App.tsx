@@ -312,6 +312,9 @@ function Inbox({ user }: { user: User }) {
   // lapsed), the next click anywhere quietly renews it. The popup closes by itself.
   useEffect(() => {
     let busyRenew = false;
+    // Phones show an "Allow this site to open?" prompt for every popup, so don't renew on
+    // taps there: the Reconnect banner appears once the hour is up instead.
+    if (matchMedia('(pointer: coarse)').matches) return;
     const onClick = () => {
       if (busyRenew || tokenExpiresAt() - Date.now() > 15 * 60_000) return;
       // Never interrupt while writing an email (unless it has fully lapsed and Send would fail).
