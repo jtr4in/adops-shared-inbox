@@ -2,7 +2,7 @@ import { FoldersDialog } from './components/FoldersDialog';
 import { Agenda } from './components/Agenda';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { AUTH_EXPIRED, AUTH_RENEWED, auth, getGmailToken, signIn, signOut, tokenExpiresAt } from './firebase';
+import { AUTH_EXPIRED, AUTH_RENEWED, auth, canStayConnected, getGmailToken, isLinked, linkGoogle, signIn, signOut, silentRenew, tokenExpiresAt } from './firebase';
 import { CATEGORIES, MY_FOLDERS, DATE_RANGES, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, autoAssignee, type Mailbox } from './config';
 import { AuthExpiredError, displayName, listThreads, setArchived, type ThreadSummary } from './gmail';
 import { categoryOf, useFolders, updateTriage, usePresence, useReportPresence, useTriage, type Triage } from './triage';
@@ -316,6 +316,7 @@ function Inbox({ user }: { user: User }) {
     // taps there: the Reconnect banner appears once the hour is up instead.
     if (matchMedia('(pointer: coarse)').matches) return;
     const onClick = () => {
+      if (isLinked()) return; // renewed silently in the background instead
       if (busyRenew || tokenExpiresAt() - Date.now() > 15 * 60_000) return;
       // Never interrupt while writing an email (unless it has fully lapsed and Send would fail).
       if (document.querySelector('.composer') && getGmailToken()) return;
@@ -337,10 +338,15 @@ function Inbox({ user }: { user: User }) {
     };
     window.addEventListener(AUTH_EXPIRED, off);
     window.addEventListener(AUTH_RENEWED, on);
-    const clock = setInterval(() => {
+    const tick = () => {
       setNow(Date.now());
-      if (!getGmailToken()) setExpired(true);
-    }, 30_000);
+      // Linked: renew quietly ahead of time, so the Reconnect bar never shows.
+      if (isLinked() && tokenExpiresAt() - Date.now() < 10 * 60_000) {
+        silentRenew().then((ok) => !ok && !getGmailToken() && setExpired(true));
+      } else if (!getGmailToken()) setExpired(true);
+    };
+    tick();
+    const clock = setInterval(tick, 30_000);
     return () => {
       window.removeEventListener(AUTH_EXPIRED, off);
       window.removeEventListener(AUTH_RENEWED, on);
@@ -362,7 +368,9 @@ function Inbox({ user }: { user: User }) {
     }
   };
 
-  const reconnect = () => signIn().catch((e) => setError(String(e?.message ?? e)));
+  const reconnect = () =>
+    (canStayConnected() ? linkGoogle() : signIn()).then(() => setLinkedNow(isLinked())).catch((e) => setError(String(e?.message ?? e)));
+  const [linkedNow, setLinkedNow] = useState(isLinked);
 
   const visible = useMemo(
     // When searching, show Done emails too so a search always finds them.
@@ -586,7 +594,12 @@ function Inbox({ user }: { user: User }) {
           </button>
         </div>
       ) : (
-        minutesLeft <= 5 && (
+        !linkedNow && canStayConnected() ? (
+          <div className="banner">
+            Stay connected to Gmail without the hourly sign-in (one-time).{' '}
+            <button className="primary" onClick={reconnect}>Stay connected</button>
+          </div>
+        ) : !linkedNow && minutesLeft <= 5 && (
           <div className="banner warn">
             Your Google session ends in {Math.max(minutesLeft, 0)} min.{' '}
             <button onClick={reconnect}>Stay synced</button>

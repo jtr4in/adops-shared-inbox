@@ -1,4 +1,4 @@
-import { getGmailToken, markTokenExpired } from './firebase';
+import { getGmailToken, markTokenExpired, silentRenew } from './firebase';
 import { GROUP_ADDRESSES } from './config';
 
 export class AuthExpiredError extends Error {
@@ -10,6 +10,7 @@ export class AuthExpiredError extends Error {
 const API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
 async function gmail<T>(path: string, init?: RequestInit, attempt = 0): Promise<T> {
+  if (!getGmailToken()) await silentRenew();
   const token = getGmailToken();
   if (!token) {
     markTokenExpired();
@@ -30,6 +31,7 @@ async function gmail<T>(path: string, init?: RequestInit, attempt = 0): Promise<
     throw new Error("Couldn't reach Gmail. Check your internet connection and try again.");
   }
   if (res.status === 401) {
+    if (attempt === 0 && (await silentRenew())) return gmail(path, init, 1);
     markTokenExpired();
     throw new AuthExpiredError();
   }

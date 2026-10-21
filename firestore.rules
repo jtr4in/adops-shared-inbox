@@ -24,6 +24,11 @@ service cloud.firestore {
       allow read, write: if isTeam();
     }
 
+    // Gmail refresh tokens: only the Cloud Functions (admin) touch these.
+    match /private/{email} {
+      allow read, write: if false;
+    }
+
     match /config/{id} {
       allow read, write: if isTeam();
     }

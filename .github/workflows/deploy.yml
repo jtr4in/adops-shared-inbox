@@ -3,6 +3,7 @@
 #   FIREBASE_SERVICE_ACCOUNT  - JSON key of a Firebase service account
 #   VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_APP_ID
 #   VITE_TEAM                 - same value as in your .env
+#   VITE_GOOGLE_CLIENT_ID     - optional: OAuth web client ID; turns on "stay connected" (Cloud Functions)
 name: Deploy
 on:
   push:
@@ -26,8 +27,19 @@ jobs:
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_TEAM: ${{ secrets.VITE_TEAM }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
       - name: Deploy to Firebase
+        env:
+          CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          TEAM: ${{ secrets.VITE_TEAM }}
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "$RUNNER_TEMP/sa.json"
+          ONLY=hosting,firestore:rules
+          if [ -n "$CLIENT_ID" ]; then
+            ONLY="$ONLY,functions"
+            # Sign-in emails = first address of each VITE_TEAM entry ("email|alias:Name,...").
+            EMAILS=$(node -e 'console.log(process.env.TEAM.split(",").map(e=>e.split(":")[0].split("|")[0].trim()).join(","))')
+            printf 'GOOGLE_CLIENT_ID=%s\nTEAM_EMAILS=%s\n' "$CLIENT_ID" "$EMAILS" > functions/.env
+          fi
           GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx -y firebase-tools@latest deploy \
-            --only hosting,firestore:rules --project "${{ secrets.VITE_FIREBASE_PROJECT_ID }}" --non-interactive
+            --only "$ONLY" --project "${{ secrets.VITE_FIREBASE_PROJECT_ID }}" --non-interactive
