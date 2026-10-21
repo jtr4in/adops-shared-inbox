@@ -80,7 +80,10 @@ function store(token: string, expiresInSec: number) {
 }
 
 export const canStayConnected = () => !!GOOGLE_CLIENT_ID;
-export const isLinked = () => !!GOOGLE_CLIENT_ID && localStorage.getItem(LINKED_KEY) === auth.currentUser?.email;
+// The link lives on the server (per person), so linking once in any browser or app covers
+// them all. Locally we only remember "not linked" to skip pointless calls until you link.
+const notLinkedKey = () => `${LINKED_KEY}:no:${auth.currentUser?.email ?? ''}`;
+export const isLinked = () => !!GOOGLE_CLIENT_ID && !!auth.currentUser && localStorage.getItem(notLinkedKey()) !== '1';
 
 // Gets a fresh Gmail token from the server, no popup. False if this person isn't linked yet.
 let renewing: Promise<boolean> | null = null;
@@ -89,7 +92,7 @@ export function silentRenew(): Promise<boolean> {
   renewing ??= httpsCallable<unknown, { token: string; expiresIn: number }>(fns, 'gmailToken')()
     .then((r) => (store(r.data.token, r.data.expiresIn), true))
     .catch((e) => {
-      if (e?.code === 'functions/failed-precondition') localStorage.removeItem(LINKED_KEY);
+      if (e?.code === 'functions/failed-precondition') localStorage.setItem(notLinkedKey(), '1');
       return false;
     })
     .finally(() => (renewing = null));
@@ -126,12 +129,11 @@ export async function linkGoogle(): Promise<void> {
       .requestCode();
   });
   const r = await httpsCallable<{ code: string }, { token: string; expiresIn: number }>(fns, 'linkGoogle')({ code });
-  localStorage.setItem(LINKED_KEY, auth.currentUser?.email ?? '');
+  localStorage.removeItem(notLinkedKey());
   store(r.data.token, r.data.expiresIn);
 }
 
 export async function signOut() {
   localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(LINKED_KEY);
   await fbSignOut(auth);
 }

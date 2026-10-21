@@ -340,9 +340,13 @@ function Inbox({ user }: { user: User }) {
     window.addEventListener(AUTH_RENEWED, on);
     const tick = () => {
       setNow(Date.now());
+      setLinkedNow(isLinked());
       // Linked: renew quietly ahead of time, so the Reconnect bar never shows.
       if (isLinked() && tokenExpiresAt() - Date.now() < 10 * 60_000) {
-        silentRenew().then((ok) => !ok && !getGmailToken() && setExpired(true));
+        silentRenew().then((ok) => {
+          setLinkedNow(isLinked());
+          if (!ok && !getGmailToken()) setExpired(true);
+        });
       } else if (!getGmailToken()) setExpired(true);
     };
     tick();
