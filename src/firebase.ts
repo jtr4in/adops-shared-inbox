@@ -118,7 +118,8 @@ export async function linkGoogle(): Promise<void> {
         client_id: GOOGLE_CLIENT_ID,
         scope: SCOPES,
         ux_mode: 'popup',
-        login_hint: auth.currentUser?.email ?? '',
+        hint: auth.currentUser?.email ?? '',
+        select_account: true,
         callback: (r: { code?: string; error?: string }) => (r.code ? ok(r.code) : fail(new Error(r.error ?? 'cancelled'))),
         error_callback: (e: { message?: string }) => fail(new Error(e?.message ?? 'popup closed')),
       })
