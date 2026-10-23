@@ -676,9 +676,20 @@ function Inbox({ user }: { user: User }) {
         {current ? (
           <div className="reader">
           <button className="back-btn" onClick={() => setSelected(null)}>← Back</button>
-          <button className="wide-btn" onClick={toggleWide} title={wide ? 'Show the email list again' : 'Hide the list and read full width'}>
-            {wide ? '⇥ Show list' : '⇤ Full width'}
-          </button>
+          {(() => {
+            const i = visible.findIndex((t) => t.threadId === current.threadId);
+            const go = (d: number) => visible[i + d] && setSelected(visible[i + d].threadId);
+            return (
+              <div className="reader-tools">
+                <button disabled={i <= 0} onClick={() => go(-1)} title="Newer email (k)">‹</button>
+                {i >= 0 && <span className="muted small">{i + 1} of {visible.length}</span>}
+                <button disabled={i < 0 || i >= visible.length - 1} onClick={() => go(1)} title="Older email (j)">›</button>
+                <button className="wide-btn" onClick={toggleWide} title={wide ? 'Show the email list again' : 'Hide the list and read full width'}>
+                  {wide ? '⇥ Show list' : '⇤ Full width'}
+                </button>
+              </div>
+            );
+          })()}
           <ThreadView
             key={current.threadId}
             summary={current}
