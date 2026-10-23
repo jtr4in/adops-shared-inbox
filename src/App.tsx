@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { AUTH_EXPIRED, AUTH_RENEWED, auth, canStayConnected, getGmailToken, isLinked, linkGoogle, signIn, signOut, silentRenew, tokenExpiresAt } from './firebase';
 import { CATEGORIES, MY_FOLDERS, DATE_RANGES, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, autoAssignee, type Mailbox } from './config';
-import { AuthExpiredError, displayName, listThreads, setArchived, type ThreadSummary } from './gmail';
+import { AuthExpiredError, displayName, listThreads, setArchived, setThreadRead, type ThreadSummary } from './gmail';
 import { categoryOf, useFolders, updateTriage, usePresence, useReportPresence, useTriage, type Triage } from './triage';
 import { Sidebar, viewId, type View } from './components/Sidebar';
 import { ThreadList } from './components/ThreadList';
@@ -415,6 +415,16 @@ function Inbox({ user }: { user: User }) {
     setChecked(new Set());
   };
 
+  // Read/unread: update the list right away, then Gmail.
+  const setRead = (ids: string[], read: boolean) => {
+    setThreads((cur) => cur.map((t) => (ids.includes(t.threadId) ? { ...t, unread: !read } : t)));
+    for (const id of ids) setThreadRead(id, read).catch((e) => setError(String(e)));
+  };
+  const bulkRead = (read: boolean) => {
+    setRead([...checked], read);
+    setChecked(new Set());
+  };
+
   const current = threads.find((t) => t.threadId === selected);
   const [composing, setComposing] = useState(false);
   useReportPresence(current?.key ?? null, composing);
@@ -648,6 +658,7 @@ function Inbox({ user }: { user: User }) {
           checked={checked}
           onChecked={setChecked}
           onBulk={bulk}
+          onBulkRead={bulkRead}
           onLoadMore={next ? loadMore : undefined}
           loading={loading}
           caption={`Showing ${mailboxLabel}`}
@@ -675,6 +686,10 @@ function Inbox({ user }: { user: User }) {
             me={me}
             others={presence.filter((p) => p.threadKey === current.key)}
             onComposing={setComposing}
+            onMarkUnread={() => {
+              setRead([current.threadId], false);
+              setSelected(null); // like Gmail: back to the list, so it isn't re-read straight away
+            }}
           />
           </div>
         ) : (

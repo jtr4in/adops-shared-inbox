@@ -14,9 +14,10 @@ interface Props {
   me: string;
   others: Presence[]; // teammates on this same thread right now
   onComposing: (composing: boolean) => void;
+  onMarkUnread: () => void;
 }
 
-export function ThreadView({ summary, triage, me, others, onComposing }: Props) {
+export function ThreadView({ summary, triage, me, others, onComposing, onMarkUnread }: Props) {
   const [messages, setMessages] = useState<Message[] | null>(null);
   const [preview, setPreview] = useState<Attachment | null>(null);
   const [error, setError] = useState('');
@@ -118,6 +119,7 @@ export function ThreadView({ summary, triage, me, others, onComposing }: Props) 
             <button className="icon-btn" title="Team notes" onClick={() => openNotes()}>
               <NoteIcon />
             </button>
+            <button className="icon-btn" title="Mark unread" onClick={onMarkUnread}>✉</button>
             <button className={triage?.done ? 'on' : 'done-btn'} onClick={toggleDone}>
               {triage?.done ? 'Reopen' : '✓ Done'}
             </button>

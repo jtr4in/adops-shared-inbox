@@ -330,6 +330,17 @@ export async function markRead(messageIds: string[], threadId?: string) {
   saveCache();
 }
 
+// Mark a whole thread read or unread.
+export async function setThreadRead(threadId: string, read: boolean) {
+  await gmail(`/threads/${threadId}/modify`, {
+    method: 'POST',
+    body: JSON.stringify(read ? { removeLabelIds: ['UNREAD'] } : { addLabelIds: ['UNREAD'] }),
+  });
+  const hit = summaryCache.get(threadId);
+  if (hit) hit.summary = { ...hit.summary, unread: !read };
+  saveCache();
+}
+
 // Archive (remove from Inbox) or un-archive a thread in the signed-in person's own Gmail.
 export async function setArchived(threadId: string, archived: boolean) {
   await gmail(`/threads/${threadId}/modify`, {

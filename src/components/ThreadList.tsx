@@ -12,6 +12,7 @@ interface Props {
   checked: Set<string>;
   onChecked: (ids: Set<string>) => void;
   onBulk: (patch: Partial<Triage>) => void;
+  onBulkRead: (read: boolean) => void;
   onLoadMore?: () => void;
   loading?: boolean;
   caption: string;
@@ -83,6 +84,8 @@ export function ThreadList(p: Props) {
               ))}
             </select>
             <button onClick={() => onBulk({ flagged: true })}>⚑</button>
+            <button onClick={() => p.onBulkRead(true)} title="Mark read">Read</button>
+            <button onClick={() => p.onBulkRead(false)} title="Mark unread">Unread</button>
             <button onClick={() => onBulk({ done: true })}>✓ Done</button>
           </div>
         ) : (
