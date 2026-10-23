@@ -89,6 +89,8 @@ function saveList(q: string, threads: ThreadSummary[]) {
 function matches(view: View, t: ThreadSummary, tr: Triage | undefined, me: string) {
   const done = !!tr?.done;
   switch (view.kind) {
+    case 'every':
+      return true; // open and Done alike
     case 'all':
       return !done;
     case 'unassigned':
@@ -109,6 +111,7 @@ function matches(view: View, t: ThreadSummary, tr: Triage | undefined, me: strin
 }
 
 const allViews = (): View[] => [
+  { kind: 'every' },
   { kind: 'all' },
   { kind: 'unassigned' },
   { kind: 'mine' },
@@ -623,7 +626,7 @@ function Inbox({ user }: { user: User }) {
         onClickCapture={(e) => {
           if (navOpen && (e.target as HTMLElement).closest(".sidebar button, .sidebar li, .sidebar a")) setNavOpen(false);
         }}
-        style={{ gridTemplateColumns: wide && current ? '230px 0 0 1fr' : `230px ${listW}px 6px 1fr` }}>
+        style={{ gridTemplateColumns: wide && current ? '0 0 0 1fr' : `230px ${listW}px 6px 1fr` }}>
         <Sidebar
           mailbox={mailbox}
           onMailbox={(m) => {

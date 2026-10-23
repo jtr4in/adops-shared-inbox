@@ -1,7 +1,7 @@
 import { CATEGORIES, MAILBOXES, MY_FOLDERS, TEAM, type Mailbox } from '../config';
 
 export type View =
-  | { kind: 'all' | 'unassigned' | 'mine' | 'flagged' | 'done' }
+  | { kind: 'every' | 'all' | 'unassigned' | 'mine' | 'flagged' | 'done' }
   | { kind: 'member'; email: string }
   | { kind: 'category'; name: string }
   | { kind: 'myfolder'; name: string };
@@ -10,10 +10,11 @@ export const viewId = (v: View) =>
   v.kind === 'member' ? `member:${v.email}` : v.kind === 'category' ? `cat:${v.name}` : v.kind === 'myfolder' ? `my:${v.name}` : v.kind;
 
 const VIEWS: { view: View; label: string; icon: string }[] = [
-  { view: { kind: 'all' }, label: 'All open', icon: '✉' },
+  { view: { kind: 'every' }, label: 'All', icon: '☰' },
+  { view: { kind: 'all' }, label: 'Open', icon: '✉' },
   { view: { kind: 'unassigned' }, label: 'Unassigned', icon: '◌' },
   { view: { kind: 'mine' }, label: 'Assigned to me', icon: '☺' },
-  { view: { kind: 'flagged' }, label: 'Flagged for help', icon: '⚑' },
+  { view: { kind: 'flagged' }, label: 'Flagged', icon: '⚑' },
   { view: { kind: 'done' }, label: 'Done', icon: '✓' },
 ];
 
