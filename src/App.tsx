@@ -419,6 +419,13 @@ function Inbox({ user }: { user: User }) {
 
   // Draggable divider between the email list and the reading pane.
   const [listW, setListW] = useState(() => Number(localStorage.getItem('listW')) || 560);
+  // Reading mode: hide the list so the open email gets the full width (remembered).
+  const [wide, setWide] = useState(() => localStorage.getItem('wideRead') === '1');
+  const toggleWide = () =>
+    setWide((w) => {
+      localStorage.setItem('wideRead', w ? '' : '1');
+      return !w;
+    });
   const startDrag = (e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
@@ -612,11 +619,11 @@ function Inbox({ user }: { user: User }) {
       )}
       {error && <div className="error banner">{error}</div>}
       <div
-        className={`panes ${current ? "has-thread" : ""} ${navOpen ? "nav-open" : ""}`}
+        className={`panes ${current ? "has-thread" : ""} ${navOpen ? "nav-open" : ""} ${wide && current ? "wide" : ""}`}
         onClickCapture={(e) => {
           if (navOpen && (e.target as HTMLElement).closest(".sidebar button, .sidebar li, .sidebar a")) setNavOpen(false);
         }}
-        style={{ gridTemplateColumns: `230px ${listW}px 6px 1fr` }}>
+        style={{ gridTemplateColumns: wide && current ? '230px 0 0 1fr' : `230px ${listW}px 6px 1fr` }}>
         <Sidebar
           mailbox={mailbox}
           onMailbox={(m) => {
@@ -648,13 +655,16 @@ function Inbox({ user }: { user: User }) {
           title="Drag to resize · double-click to reset"
           onMouseDown={startDrag}
           onDoubleClick={() => {
-            setListW(400);
+            setListW(560);
             localStorage.setItem('listW', '560');
           }}
         />
         {current ? (
           <div className="reader">
           <button className="back-btn" onClick={() => setSelected(null)}>← Back</button>
+          <button className="wide-btn" onClick={toggleWide} title={wide ? 'Show the email list again' : 'Hide the list and read full width'}>
+            {wide ? '⇥ Show list' : '⇤ Full width'}
+          </button>
           <ThreadView
             key={current.threadId}
             summary={current}
