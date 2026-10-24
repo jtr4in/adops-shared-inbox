@@ -1,4 +1,4 @@
-import { Clip, NoteIcon } from './Clip';
+import { Clip, Icon, NoteIcon } from './Clip';
 import { useRef } from 'react';
 import { GROUP_ADDRESSES, TEAM, teammateName } from '../config';
 import { addresses, displayName, type ThreadSummary } from '../gmail';
@@ -63,34 +63,33 @@ export function ThreadList(p: Props) {
   return (
     <div className="list">
       {p.top && <div className="list-search">{p.top}</div>}
-      <div className="list-head">
-        <label>
-          <input
-            type="checkbox"
-            checked={allChecked}
-            onChange={() => onChecked(allChecked ? new Set() : new Set(threads.map((t) => t.threadId)))}
-          />{' '}
-          {checked.size ? `${checked.size} selected` : `Select all (${threads.length})`}
+      <div className="list-head toolbar">
+        <input
+          type="checkbox"
+          title={allChecked ? 'Select none' : 'Select all'}
+          checked={allChecked}
+          onChange={() => onChecked(allChecked ? new Set() : new Set(threads.map((t) => t.threadId)))}
+        />
+        <span className="tb-sep" />
+        <button className="tb" disabled={!checked.size} onClick={() => onBulk({ done: true })} title="Mark done"><Icon name="done" /></button>
+        <button className="tb" disabled={!checked.size} onClick={() => onBulk({ flagged: true })} title="Flag"><Icon name="flag" /></button>
+        <button className="tb" disabled={!checked.size} onClick={() => p.onBulkRead(true)} title="Mark read"><Icon name="read" /></button>
+        <button className="tb" disabled={!checked.size} onClick={() => p.onBulkRead(false)} title="Mark unread"><Icon name="unread" /></button>
+        <span className="tb-sep" />
+        <label className={`tb tb-select ${checked.size ? '' : 'off'}`} title="Assign to">
+          <Icon name="user" />
+          <select disabled={!checked.size} value="" onChange={(e) => onBulk({ assignee: e.target.value === '-' ? null : e.target.value })}>
+            <option value="">Assign…</option>
+            <option value="-">Unassigned</option>
+            {TEAM.map((m) => (
+              <option key={m.email} value={m.email}>{m.name}</option>
+            ))}
+          </select>
         </label>
-        {checked.size > 0 ? (
-          <div className="bulk">
-            <select value="" onChange={(e) => onBulk({ assignee: e.target.value === '-' ? null : e.target.value })}>
-              <option value="">Assign…</option>
-              <option value="-">Unassigned</option>
-              {TEAM.map((m) => (
-                <option key={m.email} value={m.email}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-            <button onClick={() => onBulk({ flagged: true })}>⚑</button>
-            <button onClick={() => p.onBulkRead(true)} title="Mark read">Read</button>
-            <button onClick={() => p.onBulkRead(false)} title="Mark unread">Unread</button>
-            <button onClick={() => onBulk({ done: true })}>✓ Done</button>
-          </div>
-        ) : (
-          <span className="muted small">{p.caption}</span>
-        )}
+        <span className="spacer" />
+        <span className="muted small" title={p.caption}>
+          {checked.size ? `${checked.size} selected` : `${threads.length} email${threads.length === 1 ? '' : 's'}`}
+        </span>
       </div>
       {!threads.length && !p.loading && <div className="center muted">Nothing here</div>}
       <ul>

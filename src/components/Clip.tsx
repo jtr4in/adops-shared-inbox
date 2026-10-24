@@ -12,3 +12,17 @@ export const NoteIcon = () => (
     <path d="M15 3v6h6" />
   </svg>
 );
+
+// Small toolbar icons (Gmail-style outline).
+const paths: Record<string, string> = {
+  done: 'M20 6 9 17l-5-5',
+  flag: 'M4 22V4m0 0h13l-2 4 2 4H4',
+  read: 'M3 9l9 6 9-6M3 9l9-6 9 6v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9Z',
+  unread: 'M3 6h18v12H3zM3 6l9 7 9-7',
+  user: 'M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z',
+};
+export const Icon = ({ name }: { name: keyof typeof paths }) => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d={paths[name]} />
+  </svg>
+);

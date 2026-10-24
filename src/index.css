@@ -275,3 +275,13 @@ body.dragging iframe { pointer-events: none; }
 @media (min-width: 801px) { .panes.side-closed > .sidebar, .panes.list-closed > .list { overflow: hidden; visibility: hidden; padding: 0; border: 0; } }
 .reader .thread-head { padding-right: 230px; }
 @media (max-width: 800px) { .wide-btn { display: none; } .reader-tools { top: 6px; } .reader .thread-head { padding-right: 12px; } }
+/* Gmail-style one-line list toolbar */
+.list-head.toolbar { justify-content: flex-start; gap: 2px; padding: 4px 10px; min-height: 36px; }
+.toolbar .tb { border: 0; background: none; padding: 5px 6px; border-radius: 50%; color: #5f6368; display: inline-flex; align-items: center; cursor: pointer; }
+.toolbar .tb:hover:not(:disabled):not(.off) { background: rgba(0,0,0,.07); }
+.toolbar .tb:disabled, .toolbar .tb.off { opacity: .35; cursor: default; }
+.toolbar .tb-sep { width: 1px; height: 18px; background: var(--border); margin: 0 6px; }
+.toolbar .tb-select { position: relative; border-radius: 6px; }
+.toolbar .tb-select select { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.toolbar .spacer { flex: 1; }
+.toolbar input[type=checkbox] { margin: 0 4px; }
