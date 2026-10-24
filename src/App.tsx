@@ -86,6 +86,8 @@ function saveList(q: string, threads: ThreadSummary[]) {
   }
 }
 
+const SIDE_W = 230;
+
 function matches(view: View, t: ThreadSummary, tr: Triage | undefined, me: string) {
   const done = !!tr?.done;
   switch (view.kind) {
@@ -431,25 +433,28 @@ function Inbox({ user }: { user: User }) {
   const presence = usePresence();
 
   // Draggable divider between the email list and the reading pane.
-  const [listW, setListW] = useState(() => Number(localStorage.getItem('listW')) || 560);
-  // Reading mode: hide the list so the open email gets the full width (remembered).
-  const [wide, setWide] = useState(() => localStorage.getItem('wideRead') === '1');
-  const toggleWide = () =>
-    setWide((w) => {
-      localStorage.setItem('wideRead', w ? '' : '1');
-      return !w;
-    });
+  const [listW, setListW] = useState(() => Number(localStorage.getItem('listW') ?? 560));
+  const [sideW, setSideW] = useState(() => Number(localStorage.getItem('sideW') ?? SIDE_W));
   const startDrag = (e: React.MouseEvent) => {
     e.preventDefault();
+    // One bar for both panes: drag left to shrink the list, keep going to fold the menu
+    // away too (each snaps shut when narrow); drag right to bring them back.
     const startX = e.clientX;
-    const startW = listW;
-    let w = startW;
+    const startTotal = sideW + listW;
+    let side = sideW;
+    let w = listW;
     const move = (ev: MouseEvent) => {
-      w = Math.min(Math.max(startW + ev.clientX - startX, 260), window.innerWidth - 230 - 360);
+      const total = Math.min(Math.max(startTotal + ev.clientX - startX, 0), window.innerWidth - 360);
+      side = Math.min(total, SIDE_W);
+      w = total - side;
+      if (side < SIDE_W && side < 120) side = 0;
+      if (w < 160) w = 0;
+      setSideW(side);
       setListW(w);
     };
     const up = () => {
       localStorage.setItem('listW', String(w));
+      localStorage.setItem('sideW', String(side));
       document.body.classList.remove('dragging');
       window.removeEventListener('mousemove', move);
       window.removeEventListener('mouseup', up);
@@ -632,11 +637,11 @@ function Inbox({ user }: { user: User }) {
       )}
       {error && <div className="error banner">{error}</div>}
       <div
-        className={`panes ${current ? "has-thread" : ""} ${navOpen ? "nav-open" : ""} ${wide && current ? "wide" : ""}`}
+        className={`panes ${current ? "has-thread" : ""} ${navOpen ? "nav-open" : ""} ${sideW ? "" : "side-closed"} ${listW ? "" : "list-closed"}`}
         onClickCapture={(e) => {
           if (navOpen && (e.target as HTMLElement).closest(".sidebar button, .sidebar li, .sidebar a")) setNavOpen(false);
         }}
-        style={{ gridTemplateColumns: wide && current ? '0 0 0 1fr' : `230px ${listW}px 6px 1fr` }}>
+        style={{ gridTemplateColumns: `${sideW}px ${listW}px 6px 1fr` }}>
         <Sidebar
           mailbox={mailbox}
           onMailbox={(m) => {
@@ -666,11 +671,13 @@ function Inbox({ user }: { user: User }) {
         />
         <div
           className="splitter"
-          title="Drag to resize · double-click to reset"
+          title="Drag to resize (all the way left to hide the list and menu) · double-click to reset"
           onMouseDown={startDrag}
           onDoubleClick={() => {
             setListW(560);
+            setSideW(SIDE_W);
             localStorage.setItem('listW', '560');
+            localStorage.setItem('sideW', String(SIDE_W));
           }}
         />
         {current ? (
@@ -684,9 +691,6 @@ function Inbox({ user }: { user: User }) {
                 <button disabled={i <= 0} onClick={() => go(-1)} title="Newer email (k)">‹</button>
                 {i >= 0 && <span className="muted small">{i + 1} of {visible.length}</span>}
                 <button disabled={i < 0 || i >= visible.length - 1} onClick={() => go(1)} title="Older email (j)">›</button>
-                <button className="wide-btn" onClick={toggleWide} title={wide ? 'Show the email list again' : 'Hide the list and read full width'}>
-                  {wide ? '⇥ Show list' : '⇤ Full width'}
-                </button>
               </div>
             );
           })()}
