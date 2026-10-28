@@ -313,9 +313,30 @@ export async function listThreads(
   return { threads, next: list.nextPageToken };
 }
 
-export async function getThread(threadId: string): Promise<Message[]> {
-  const t = await gmail<{ messages: RawMessage[] }>(`/threads/${threadId}?format=full`);
-  return t.messages.map((m) => parse(m, true));
+// Opened threads, kept for this session so reopening (or hover-prefetched) emails show instantly.
+const threadCache = new Map<string, Message[]>();
+const inflight = new Map<string, Promise<Message[]>>();
+export const cachedThread = (threadId: string) => threadCache.get(threadId);
+
+export function getThread(threadId: string): Promise<Message[]> {
+  let p = inflight.get(threadId);
+  if (!p) {
+    p = gmail<{ messages: RawMessage[] }>(`/threads/${threadId}?format=full`)
+      .then((t) => {
+        const msgs = t.messages.map((m) => parse(m, true));
+        threadCache.set(threadId, msgs);
+        if (threadCache.size > 60) threadCache.delete(threadCache.keys().next().value!);
+        return msgs;
+      })
+      .finally(() => inflight.delete(threadId));
+    inflight.set(threadId, p);
+  }
+  return p;
+}
+
+// Start loading an email you're about to open (hovering its row).
+export function prefetchThread(threadId: string) {
+  if (!threadCache.has(threadId)) getThread(threadId).catch(() => {});
 }
 
 export async function markRead(messageIds: string[], threadId?: string) {

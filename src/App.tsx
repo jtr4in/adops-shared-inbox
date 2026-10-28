@@ -302,7 +302,12 @@ function Inbox({ user }: { user: User }) {
   useEffect(() => {
     const tick = () => document.visibilityState === 'visible' && refresh();
     const id = setInterval(tick, SYNC_EVERY_MS);
-    const onFocus = () => tick();
+    const onFocus = () => {
+      // Back to the tab: renew Gmail access now (timers sleep in background tabs), so
+      // opening an email doesn't wait on it.
+      if (isLinked() && tokenExpiresAt() - Date.now() < 10 * 60_000) silentRenew();
+      tick();
+    };
     document.addEventListener('visibilitychange', onFocus);
     window.addEventListener('focus', onFocus);
     return () => {

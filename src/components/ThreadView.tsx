@@ -1,7 +1,7 @@
 import { Clip, NoteIcon } from './Clip';
 import { useEffect, useRef, useState } from 'react';
 import { CATEGORIES, TEAM, teammateName } from '../config';
-import { setArchived, displayName, downloadAttachment, getThread, markRead, withInlineImages, type Attachment, type Message, type ThreadSummary } from '../gmail';
+import { cachedThread, setArchived, displayName, downloadAttachment, getThread, markRead, withInlineImages, type Attachment, type Message, type ThreadSummary } from '../gmail';
 import { AttachmentPreview, canPreview } from './AttachmentPreview';
 import { addNote, categoryOf, updateTriage, useNotes, type Presence, type Triage } from '../triage';
 import { formatDate } from './ThreadList';
@@ -19,10 +19,13 @@ interface Props {
 }
 
 export function ThreadView({ summary, triage, me, others, onComposing, onMarkUnread }: Props) {
-  const [messages, setMessages] = useState<Message[] | null>(null);
+  const [messages, setMessages] = useState<Message[] | null>(() => {
+    const c = cachedThread(summary.threadId);
+    return c && c.length === summary.count ? c : null;
+  });
   const [preview, setPreview] = useState<Attachment | null>(null);
   const [error, setError] = useState('');
-  const [open, setOpen] = useState<Set<string>>(new Set());
+  const [open, setOpen] = useState<Set<string>>(() => new Set(messages ? [messages[messages.length - 1].id] : []));
   const [reply, setReply] = useState<ReplyMode | null>(() => (loadDraft(summary.threadId)?.mode as ReplyMode) ?? null);
   const notes = useNotes(summary.key);
   // Notes written before the list icon existed: bring the thread's count up to date.

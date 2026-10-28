@@ -2,7 +2,7 @@ import { Clip, Icon, NoteIcon } from './Clip';
 import { hasDraft } from '../drafts';
 import { useEffect, useRef, useState } from 'react';
 import { GROUP_ADDRESSES, TEAM, teammateName } from '../config';
-import { addresses, displayName, type ThreadSummary } from '../gmail';
+import { addresses, displayName, prefetchThread, type ThreadSummary } from '../gmail';
 import { categoryOf, type Presence, type Triage } from '../triage';
 
 interface Props {
@@ -42,6 +42,7 @@ function groupChip(t: ThreadSummary) {
 export function ThreadList(p: Props) {
   const { threads, triage, selected, onSelect, checked, onChecked, onBulk } = p;
   const [, redraw] = useState(0);
+  const hover = useRef(0);
   useEffect(() => {
     const on = () => redraw((n) => n + 1);
     window.addEventListener('drafts-changed', on);
@@ -105,6 +106,11 @@ export function ThreadList(p: Props) {
           const chip = groupChip(t);
           return (
             <li
+              onMouseEnter={() => {
+                clearTimeout(hover.current);
+                hover.current = window.setTimeout(() => prefetchThread(t.threadId), 150);
+              }}
+              onMouseLeave={() => clearTimeout(hover.current)}
               key={t.threadId}
               className={`row ${t.threadId === selected ? 'selected' : ''} ${t.unread ? 'unread' : ''} ${tr?.assignee ? 'owned' : ''}`}
               onClick={(e) => {
