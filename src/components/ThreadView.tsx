@@ -5,6 +5,7 @@ import { setArchived, displayName, downloadAttachment, getThread, markRead, with
 import { AttachmentPreview, canPreview } from './AttachmentPreview';
 import { addNote, categoryOf, updateTriage, useNotes, type Presence, type Triage } from '../triage';
 import { formatDate } from './ThreadList';
+import { loadDraft } from '../drafts';
 import { trackSelection } from '../selection';
 import { Composer, kb, type ReplyMode } from './Composer';
 
@@ -22,7 +23,7 @@ export function ThreadView({ summary, triage, me, others, onComposing, onMarkUnr
   const [preview, setPreview] = useState<Attachment | null>(null);
   const [error, setError] = useState('');
   const [open, setOpen] = useState<Set<string>>(new Set());
-  const [reply, setReply] = useState<ReplyMode | null>(null);
+  const [reply, setReply] = useState<ReplyMode | null>(() => (loadDraft(summary.threadId)?.mode as ReplyMode) ?? null);
   const notes = useNotes(summary.key);
   // Notes written before the list icon existed: bring the thread's count up to date.
   useEffect(() => {
@@ -192,6 +193,7 @@ export function ThreadView({ summary, triage, me, others, onComposing, onMarkUnr
           <Composer
             key={reply}
             mode={reply}
+            draftId={summary.threadId}
             messages={messages}
             subject={summary.subject}
             me={me}

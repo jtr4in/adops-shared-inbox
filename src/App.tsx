@@ -744,6 +744,7 @@ function Inbox({ user }: { user: User }) {
           <div className="modal wide">
             <Composer
               mode="new"
+              draftId="new"
               me={me}
               onClose={() => setDialog(null)}
               onSent={() => {

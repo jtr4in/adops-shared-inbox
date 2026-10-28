@@ -15,6 +15,7 @@ import {
   type SendAs,
 } from '../gmail';
 import { AddressInput } from './AddressInput';
+import { clearDraft, loadDraft, saveDraft } from '../drafts';
 import { GROUP_ADDRESSES, TEAM } from '../config';
 import { auth } from '../firebase';
 import { saveTemplate, useSignature, useTemplates } from '../triage';
@@ -29,6 +30,7 @@ interface Props {
   onClose: () => void;
   onSent: () => void;
   othersReplying?: string[];
+  draftId?: string; // thread id, or 'new': autosaves what you type
 }
 
 const uniq = (xs: string[]) => [...new Set(xs)];
@@ -107,7 +109,9 @@ const TITLES: Record<ReplyMode, string> = {
   new: 'New email',
 };
 
-export function Composer({ mode, messages, subject = '', me, onClose, onSent, othersReplying = [] }: Props) {
+export function Composer({ mode, messages, subject = '', me, onClose, onSent, othersReplying = [], draftId }: Props) {
+  const draft = useRef(draftId ? loadDraft(draftId) : null);
+  if (draft.current && draft.current.mode !== mode) draft.current = null;
   const last = messages?.[messages.length - 1];
   const [sendAs, setSendAs] = useState<SendAs[]>([]);
   const [from, setFrom] = useState('');
@@ -186,6 +190,10 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
   // The editor holds your text, then your signature, then the original email,
   // all editable (trim the quoted email before sending if you like).
   useEffect(() => {
+    if (editor.current && !editor.current.innerHTML && draft.current) {
+      editor.current.innerHTML = draft.current.html;
+      return;
+    }
     if (editor.current && !editor.current.innerHTML) {
       editor.current.innerHTML = `<div><br></div><div data-sig></div>${originalQuote ? `<div data-quote>${originalQuote}</div>` : ''}`;
       const sel = window.getSelection();
@@ -212,6 +220,14 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
         setSendAs(list);
         setFrom((list.find((s) => s.isDefault) ?? list[0])?.sendAsEmail ?? me);
         const mine = [me, ...list.map((s) => s.sendAsEmail.toLowerCase())];
+        const d = draft.current;
+        if (d) {
+          setTo(d.to);
+          setCc(d.cc);
+          setBcc(d.bcc);
+          setSubj(d.subj);
+          return;
+        }
         const r = recipients(mode, last, mine, messages);
         setTo(r.to.join(', '));
         setCc(r.cc.join(', '));
@@ -219,6 +235,33 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
       .catch((e) => setError(String(e)));
     editor.current?.focus();
   }, [mode, last, me]);
+
+  // Autosave (a moment after you stop typing).
+  const save = useRef<() => void>(() => {});
+  save.current = () => {
+    if (!draftId || !editor.current) return;
+    saveDraft(draftId, { mode, to, cc, bcc, subj, html: editor.current.innerHTML });
+  };
+  const timer = useRef<number>(0);
+  const queueSave = () => {
+    clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => save.current(), 600);
+  };
+  const touched = useRef(!!draft.current);
+  useEffect(() => {
+    if (touched.current) queueSave();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [to, cc, bcc, subj]);
+  // Leaving (another email, closing the tab): save right away.
+  useEffect(() => {
+    const flush = () => touched.current && save.current();
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      window.removeEventListener('beforeunload', flush);
+      clearTimeout(timer.current);
+      flush();
+    };
+  }, []);
 
   function exec(cmd: string) {
     editor.current?.focus();
@@ -273,6 +316,8 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
         files: outgoing,
       });
       rememberRecipients([...addresses(to), ...addresses(cc), ...addresses(bcc)]);
+      if (draftId) clearDraft(draftId);
+      touched.current = false;
       onSent();
     } catch (e) {
       setError(String(e));
@@ -282,7 +327,13 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
   }
 
   return (
-    <div className="composer">
+    <div
+      className="composer"
+      onInputCapture={() => {
+        touched.current = true;
+        queueSave();
+      }}
+    >
       <div className="composer-bar">
         <button className="primary" disabled={sending || !addresses(to).length} onClick={submit}>
           {sending ? 'Sending…' : 'Send'}
@@ -301,7 +352,16 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
           ))}
           <option value="+">＋ Save current text as template</option>
         </select>
-        <button onClick={onClose}>Discard</button>
+        <button
+          onClick={() => {
+            if (draftId && touched.current && !confirm('Discard this draft?')) return;
+            touched.current = false;
+            if (draftId) clearDraft(draftId);
+            onClose();
+          }}
+        >
+          Discard
+        </button>
       </div>
       <label className="field">
         From
@@ -402,7 +462,11 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
             pickMention(mention.list[mention.idx]);
           } else if (e.key === 'Escape') setMention(null);
         }}
-        onInput={checkMention}
+        onInput={() => {
+          touched.current = true;
+          checkMention();
+          queueSave();
+        }}
         onBlur={() => setTimeout(() => setMention(null), 150)}
         onScroll={() => redraw((n) => n + 1)}
         onDragOver={(e) => e.preventDefault()}

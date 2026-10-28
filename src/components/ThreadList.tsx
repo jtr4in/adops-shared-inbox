@@ -1,5 +1,6 @@
 import { Clip, Icon, NoteIcon } from './Clip';
-import { useRef } from 'react';
+import { hasDraft } from '../drafts';
+import { useEffect, useRef, useState } from 'react';
 import { GROUP_ADDRESSES, TEAM, teammateName } from '../config';
 import { addresses, displayName, type ThreadSummary } from '../gmail';
 import { categoryOf, type Presence, type Triage } from '../triage';
@@ -40,6 +41,12 @@ function groupChip(t: ThreadSummary) {
 
 export function ThreadList(p: Props) {
   const { threads, triage, selected, onSelect, checked, onChecked, onBulk } = p;
+  const [, redraw] = useState(0);
+  useEffect(() => {
+    const on = () => redraw((n) => n + 1);
+    window.addEventListener('drafts-changed', on);
+    return () => window.removeEventListener('drafts-changed', on);
+  }, []);
   const allChecked = threads.length > 0 && threads.every((t) => checked.has(t.threadId));
   const lastClicked = useRef<number | null>(null);
   // Click toggles one; shift+click selects the whole range since the last click.
@@ -132,6 +139,7 @@ export function ThreadList(p: Props) {
                 ))}
               {tr?.assignee && <span className="chip assigned">{teammateName(tr.assignee).split(' ')[0]}</span>}
               {tr?.done && <span className="chip done">Done</span>}
+              {hasDraft(t.threadId) && <span className="chip draft">Draft</span>}
               {t.sent && <span className="chip sent">Sent</span>}
               {(() => {
                 // Gmail-style nudge: our message is the last one and nobody has replied for 3+ days.
