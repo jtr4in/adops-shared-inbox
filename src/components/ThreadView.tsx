@@ -208,7 +208,18 @@ export function ThreadView({ summary, triage, me, others, onComposing, onMarkUnr
           <article key={m.id} className="message">
             <header onClick={() => toggle(m.id)}>
               <strong>{displayName(m.from)}</strong>
-              {files(m).length > 0 && <span className="clip" title="Has attachments"><Clip /></span>}
+              {files(m).length > 0 && (
+                <span
+                  className="clip"
+                  title="Jump to attachments"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    (e.currentTarget.closest('.message')?.querySelector('.attach-list') as HTMLElement | null)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
+                >
+                  <Clip /> {files(m).length}
+                </span>
+              )}
               <span className="date">{formatDate(m.date)}</span>
             </header>
             <div className="recips">
@@ -263,8 +274,29 @@ function MailBody({ html }: { html: string }) {
       srcDoc={doc}
       style={{ height }}
       onLoad={(e) => {
-        const d = e.currentTarget.contentDocument;
-        if (d?.body) setHeight(d.body.scrollHeight + 16);
+        const frame = e.currentTarget;
+        const d = frame.contentDocument;
+        const fit = () => d?.body && setHeight(d.body.scrollHeight + 16);
+        // Hide the quoted earlier emails behind "•••" (like Gmail), so this message's
+        // own text and its attachments sit together.
+        const q = d?.querySelector('.gmail_quote, blockquote[type="cite"], #divRplyFwdMsg, #appendonsend, .yahoo_quoted, #mail-editor-reference-message-container');
+        if (d && q && q.parentElement && (q.textContent ?? '').trim().length > 0 && !d.getElementById('quote-toggle')) {
+          const hidden: HTMLElement[] = [];
+          for (let n: Element | null = q; n; n = n.nextElementSibling) hidden.push(n as HTMLElement);
+          hidden.forEach((n) => (n.style.display = 'none'));
+          const btn = d.createElement('button');
+          btn.id = 'quote-toggle';
+          btn.textContent = '•••';
+          btn.title = 'Show trimmed content';
+          btn.setAttribute('style', 'border:1px solid #ddd;background:#f1f3f4;border-radius:8px;padding:0 8px;font-size:12px;line-height:16px;cursor:pointer;margin:6px 0;color:#444');
+          btn.onclick = () => {
+            const show = hidden[0].style.display === 'none';
+            hidden.forEach((n) => (n.style.display = show ? '' : 'none'));
+            fit();
+          };
+          q.parentElement.insertBefore(btn, q);
+        }
+        fit();
         if (d) trackSelection(d);
         // Click an image (that isn't a link) to see it full size.
         d?.querySelectorAll('img').forEach((img) => {
