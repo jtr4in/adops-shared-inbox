@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CATEGORIES, TEAM, teammateName } from '../config';
 import { cachedThread, setArchived, displayName, downloadAttachment, getThread, markRead, withInlineImages, type Attachment, type Message, type ThreadSummary } from '../gmail';
 import { AttachmentPreview, canPreview } from './AttachmentPreview';
-import { addNote, categoryOf, updateTriage, useNotes, type Presence, type Triage } from '../triage';
+import { addMyNote, addNote, categoryOf, updateTriage, useMyNotes, useNotes, type Presence, type Triage } from '../triage';
 import { formatDate } from './ThreadList';
 import { loadDraft } from '../drafts';
 import { trackSelection } from '../selection';
@@ -28,6 +28,9 @@ export function ThreadView({ summary, triage, me, others, onComposing, onMarkUnr
   const [open, setOpen] = useState<Set<string>>(() => new Set(messages ? [messages[messages.length - 1].id] : []));
   const [reply, setReply] = useState<ReplyMode | null>(() => (loadDraft(summary.threadId)?.mode as ReplyMode) ?? null);
   const notes = useNotes(summary.key);
+  const myNotes = useMyNotes();
+  const mine = myNotes.filter((n) => n.key === summary.key);
+  const [noteTab, setNoteTab] = useState<'mine' | 'team'>('mine');
   // Notes written before the list icon existed: bring the thread's count up to date.
   useEffect(() => {
     if (notes.length > (triage?.noteCount ?? 0)) updateTriage(summary.key, summary.subject, { noteCount: notes.length });
@@ -164,17 +167,24 @@ export function ThreadView({ summary, triage, me, others, onComposing, onMarkUnr
       <div className="thread-body">
         {error && <div className="error">{error}</div>}
         {!messages && !error && <div className="muted">Loading…</div>}
-        {(notes.length > 0 || notesOpen) && <div className={`notes ${notesOpen ? 'open' : ''}`}>
+        {(notes.length > 0 || mine.length > 0 || notesOpen) && <div className={`notes ${notesOpen ? 'open' : ''}`}>
           <button className="notes-toggle" onClick={() => setNotesOpen(!notesOpen)}>
-            <NoteIcon /> Team notes{notes.length ? ` (${notes.length})` : ''} <span className="muted small">only visible here, never emailed</span>
+            <NoteIcon /> Notes
+            {mine.length > 0 && <span className="muted small"> · {mine.length} personal</span>}
+            {notes.length > 0 && <span className="muted small"> · {notes.length} team</span>}
             <span className="spacer" />
             {notesOpen ? '▴' : '▾'}
           </button>
           {notesOpen && (
           <>
-          {notes.map((n) => (
+          <div className="note-tabs">
+            <button className={noteTab === 'mine' ? 'active' : ''} onClick={() => setNoteTab('mine')}>Personal{mine.length ? ` (${mine.length})` : ''}</button>
+            <button className={noteTab === 'team' ? 'active' : ''} onClick={() => setNoteTab('team')}>Team{notes.length ? ` (${notes.length})` : ''}</button>
+            <span className="muted small">{noteTab === 'mine' ? 'Only you can see these' : 'Visible to the team, never emailed'}</span>
+          </div>
+          {(noteTab === 'mine' ? mine : notes).map((n) => (
             <div key={n.id} className="note">
-              <strong>{teammateName(n.author)}</strong>
+              {noteTab === 'team' && <strong>{teammateName(n.author)}</strong>}
               <span className="muted small"> {n.createdAt && formatDate(n.createdAt.toMillis())}</span>
               <div>{n.text}</div>
             </div>
@@ -183,11 +193,16 @@ export function ThreadView({ summary, triage, me, others, onComposing, onMarkUnr
             onSubmit={(e) => {
               e.preventDefault();
               if (!note.trim()) return;
-              addNote(summary.key, note.trim());
+              (noteTab === 'mine' ? addMyNote : addNote)(summary.key, note.trim());
               setNote('');
             }}
           >
-            <input ref={notesRef} placeholder="Add a private note for the team…" value={note} onChange={(e) => setNote(e.target.value)} />
+            <input
+              ref={notesRef}
+              placeholder={noteTab === 'mine' ? 'Add a note just for you…' : 'Add a note for the team…'}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
           </form>
           </>
           )}

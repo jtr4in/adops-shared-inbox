@@ -3,7 +3,7 @@ import { hasDraft } from '../drafts';
 import { useEffect, useRef, useState } from 'react';
 import { GROUP_ADDRESSES, TEAM, teammateName } from '../config';
 import { addresses, displayName, prefetchThread, type ThreadSummary } from '../gmail';
-import { categoryOf, type Presence, type Triage } from '../triage';
+import { categoryOf, useMyNotes, type Presence, type Triage } from '../triage';
 
 interface Props {
   threads: ThreadSummary[];
@@ -43,6 +43,8 @@ export function ThreadList(p: Props) {
   const { threads, triage, selected, onSelect, checked, onChecked, onBulk } = p;
   const [, redraw] = useState(0);
   const hover = useRef(0);
+  const myNotes = useMyNotes();
+  const myKeys = new Set(myNotes.map((n) => n.key));
   useEffect(() => {
     const on = () => redraw((n) => n + 1);
     window.addEventListener('drafts-changed', on);
@@ -159,6 +161,7 @@ export function ThreadList(p: Props) {
                 <span className="subject">{t.subject}</span>
                 <span className="snippet"> - {t.snippet}</span>
               </span>
+              {!tr?.noteCount && myKeys.has(t.key) && <span className="clip" title="Your personal note"><NoteIcon /></span>}
               {!!tr?.noteCount && <span className="clip" title={`${tr.noteCount} team note${tr.noteCount > 1 ? 's' : ''}`}><NoteIcon /></span>}
               {t.hasFiles && <span className="clip" title="Has attachments"><Clip /></span>}
               <span className="date">{formatDate(t.date)}</span>

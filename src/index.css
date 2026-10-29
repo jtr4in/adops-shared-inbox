@@ -286,3 +286,7 @@ body.dragging iframe { pointer-events: none; }
 .toolbar .spacer { flex: 1; }
 .toolbar input[type=checkbox] { margin: 0 4px; }
 .chip.draft { background: #fde8e8; color: #b91c1c; }
+.note-tabs { display: flex; gap: 4px; align-items: center; margin: 4px 0 6px; }
+.note-tabs button { font-size: 12px; padding: 2px 10px; border-radius: 12px; }
+.note-tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.note-tabs .muted { margin-left: 6px; }

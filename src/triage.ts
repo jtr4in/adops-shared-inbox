@@ -72,6 +72,26 @@ export function useNotes(key: string | undefined): Note[] {
   return notes;
 }
 
+// Personal notes: only the author can read them (users/{email}/notes, locked down in the rules).
+export interface MyNote extends Note {
+  key: string;
+}
+export function useMyNotes(): MyNote[] {
+  const [notes, setNotes] = useState<MyNote[]>([]);
+  const email = auth.currentUser?.email;
+  useEffect(() => {
+    if (!email) return;
+    return onSnapshot(query(collection(db, 'users', email, 'notes'), orderBy('createdAt')), (snap) =>
+      setNotes(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<MyNote, 'id'>) }))),
+    );
+  }, [email]);
+  return notes;
+}
+export function addMyNote(key: string, text: string) {
+  const email = auth.currentUser?.email ?? '';
+  return addDoc(collection(db, 'users', email, 'notes'), { key, text, author: email, createdAt: serverTimestamp() });
+}
+
 export function addNote(key: string, text: string) {
   setDoc(doc(db, 'threads', key), { noteCount: increment(1) }, { merge: true }).catch(() => {});
   return addDoc(collection(db, 'threads', key, 'notes'), {
