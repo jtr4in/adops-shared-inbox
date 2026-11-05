@@ -3,7 +3,7 @@ import { Agenda } from './components/Agenda';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { AUTH_EXPIRED, AUTH_RENEWED, auth, canStayConnected, getGmailToken, isLinked, linkGoogle, signIn, signOut, silentRenew, tokenExpiresAt } from './firebase';
-import { CATEGORIES, MY_FOLDERS, DATE_RANGES, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, autoAssignee, type Mailbox } from './config';
+import { CATEGORIES, MY_FOLDERS, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, autoAssignee, type Mailbox } from './config';
 import { AuthExpiredError, displayName, listThreads, setArchived, setThreadRead, type ThreadSummary } from './gmail';
 import { categoryOf, useFolders, updateTriage, usePresence, useReportPresence, useTriage, type Triage } from './triage';
 import { Sidebar, viewId, type View } from './components/Sidebar';
@@ -148,9 +148,8 @@ function Inbox({ user }: { user: User }) {
   const [now, setNow] = useState(Date.now());
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const [days, setDays] = useState(() => Number(localStorage.getItem('days')) || 90);
   const query = useMemo(() => {
-    const base = mailboxQuery(mailbox, days, me);
+    const base = mailboxQuery(mailbox, me);
     // "all:" searches your whole Gmail, ignoring the mailbox filter.
     if (search.startsWith('all:')) return search.slice(4).trim() || base;
     // My folders run as a Gmail search, so they find every matching email (any sender,
@@ -160,7 +159,7 @@ function Inbox({ user }: { user: User }) {
       .map((w) => (/\s/.test(w) ? `"${w.replace(/"/g, '')}"` : w));
     const withFolder = words?.length ? `${base} {${words.join(' ')}}` : base;
     return search ? `${withFolder} ${search}` : withFolder;
-  }, [mailbox, search, days, me, view, foldersVersion]);
+  }, [mailbox, search, me, view, foldersVersion]);
 
   // Desktop alerts for new mail and for things assigned to you by a teammate.
   const [alertsOn, setAlertsOn] = useState(() => 'Notification' in window && Notification.permission === 'granted');
@@ -512,20 +511,6 @@ function Inbox({ user }: { user: User }) {
 
   const searchBox = (
         <div className="searchbox">
-          <select
-            value={days}
-            title="How far back to load"
-            onChange={(e) => {
-              setDays(Number(e.target.value));
-              localStorage.setItem('days', e.target.value);
-            }}
-          >
-            {DATE_RANGES.map((d) => (
-              <option key={d} value={d}>
-                {d}d
-              </option>
-            ))}
-          </select>
           <form
             onSubmit={(e) => {
               e.preventDefault();

@@ -48,18 +48,17 @@ export const MAILBOXES: { id: Mailbox; label: string; query: string }[] = [
   { id: 'sent', label: 'Sent', query: 'in:sent' },
 ];
 
-export const DATE_RANGES = [30, 90, 180, 365];
 
 // "Just to me" = addressed To/Cc one of my own addresses (my login + my aliases in VITE_TEAM),
 // and not part of the shared inbox.
 export const myAddresses = (me: string) => [me, ...(TEAM.find((t) => t.email === me)?.aliases ?? [])];
 
-export function mailboxQuery(id: Mailbox, days: number, me = ''): string {
+export function mailboxQuery(id: Mailbox, me = ''): string {
   if (id === 'me' && me) {
     const mine = [...new Set(myAddresses(me))].map((a) => `to:${a} cc:${a}`).join(' ');
-    return `{${mine}} -${TO_GROUP} newer_than:${days}d`;
+    return `{${mine}} -${TO_GROUP}`;
   }
-  return `${MAILBOXES.find((m) => m.id === id)!.query} newer_than:${days}d`;
+  return `${MAILBOXES.find((m) => m.id === id)!.query}`;
 }
 
 // Smart folders. AdOps folders are shared (first match wins; anything unmatched is General
