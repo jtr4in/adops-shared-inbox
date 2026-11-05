@@ -109,6 +109,8 @@ const TITLES: Record<ReplyMode, string> = {
   new: 'New email',
 };
 
+const UNDO_SECONDS = 5;
+
 export function Composer({ mode, messages, subject = '', me, onClose, onSent, othersReplying = [], draftId }: Props) {
   const draft = useRef(draftId ? loadDraft(draftId) : null);
   if (draft.current && draft.current.mode !== mode) draft.current = null;
@@ -287,8 +289,40 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
     if (name) await saveTemplate({ name, html });
   }
 
-  async function submit() {
+  // Undo send: hold the email for a few seconds with a countdown. The draft stays saved meanwhile,
+  // so Undo (or closing the tab) loses nothing; clicking away mid-countdown sends it right away.
+  const [countdown, setCountdown] = useState(0);
+  const timer = useRef<number | undefined>(undefined);
+  const sendNow = useRef<() => void>(() => {});
+  sendNow.current = () => void doSend();
+  const cancelUndo = () => {
+    window.clearInterval(timer.current);
+    timer.current = undefined;
+    setCountdown(0);
+  };
+  useEffect(
+    () => () => {
+      if (timer.current !== undefined) {
+        window.clearInterval(timer.current);
+        sendNow.current();
+      }
+    },
+    [],
+  );
+
+  function submit() {
     if (othersReplying.length && !confirm(`${othersReplying.join(', ')} is also replying to this email right now. Send anyway?`)) return;
+    let left = UNDO_SECONDS;
+    setCountdown(left);
+    timer.current = window.setInterval(() => {
+      left -= 1;
+      if (left > 0) return setCountdown(left);
+      cancelUndo();
+      sendNow.current();
+    }, 1000);
+  }
+
+  async function doSend() {
     setSending(true);
     setError('');
     try {
@@ -335,9 +369,15 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
       }}
     >
       <div className="composer-bar">
-        <button className="primary" disabled={sending || !addresses(to).length} onClick={submit}>
-          {sending ? 'Sending…' : 'Send'}
-        </button>
+        {countdown ? (
+          <button className="primary undo" onClick={cancelUndo} title="Stop this email from sending">
+            Undo · sending in {countdown}s
+          </button>
+        ) : (
+          <button className="primary" disabled={sending || !addresses(to).length} onClick={submit}>
+            {sending ? 'Sending…' : 'Send'}
+          </button>
+        )}
         <strong>{TITLES[mode]}</strong>
         <span className="spacer" />
         <label className="small">

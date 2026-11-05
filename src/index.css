@@ -293,3 +293,4 @@ body.dragging iframe { pointer-events: none; }
 .star { cursor: pointer; color: #9aa0a6; font-size: 15px; line-height: 1; }
 .star:hover { color: #f4b400; }
 .star.on { color: #f4b400; }
+.composer-bar .primary.undo { background: #5f6368; }
