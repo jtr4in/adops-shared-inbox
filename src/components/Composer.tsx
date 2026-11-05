@@ -293,6 +293,7 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
   // so Undo (or closing the tab) loses nothing; clicking away mid-countdown sends it right away.
   const [countdown, setCountdown] = useState(0);
   const undoTimer = useRef<number | undefined>(undefined);
+  const bodyAtSend = useRef(''); // the editor is gone if we send after clicking away
   const sendNow = useRef<() => void>(() => {});
   sendNow.current = () => void doSend();
   const cancelUndo = () => {
@@ -312,6 +313,7 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
 
   function submit() {
     if (othersReplying.length && !confirm(`${othersReplying.join(', ')} is also replying to this email right now. Send anyway?`)) return;
+    bodyAtSend.current = editor.current?.innerHTML ?? '';
     let left = UNDO_SECONDS;
     setCountdown(left);
     undoTimer.current = window.setInterval(() => {
@@ -329,7 +331,7 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
       if (totalBytes > MAX_ATTACH_BYTES) throw new Error('Attachments are over 20 MB. Remove some or share a link instead.');
       const sa = sendAs.find((s) => s.sendAsEmail === from);
       // Wrap in the same base font the editor shows, so recipients see what you saw.
-      const html = `<div style="${EMAIL_FONT}">${editor.current?.innerHTML ?? ''}</div>`;
+      const html = `<div style="${EMAIL_FONT}">${editor.current?.innerHTML ?? bodyAtSend.current}</div>`;
       const outgoing = [
         ...(await Promise.all(files.map(fileToOutgoing))),
         ...(await Promise.all(
