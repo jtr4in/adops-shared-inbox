@@ -292,18 +292,18 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
   // Undo send: hold the email for a few seconds with a countdown. The draft stays saved meanwhile,
   // so Undo (or closing the tab) loses nothing; clicking away mid-countdown sends it right away.
   const [countdown, setCountdown] = useState(0);
-  const timer = useRef<number | undefined>(undefined);
+  const undoTimer = useRef<number | undefined>(undefined);
   const sendNow = useRef<() => void>(() => {});
   sendNow.current = () => void doSend();
   const cancelUndo = () => {
-    window.clearInterval(timer.current);
-    timer.current = undefined;
+    window.clearInterval(undoTimer.current);
+    undoTimer.current = undefined;
     setCountdown(0);
   };
   useEffect(
     () => () => {
-      if (timer.current !== undefined) {
-        window.clearInterval(timer.current);
+      if (undoTimer.current !== undefined) {
+        window.clearInterval(undoTimer.current);
         sendNow.current();
       }
     },
@@ -314,7 +314,7 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
     if (othersReplying.length && !confirm(`${othersReplying.join(', ')} is also replying to this email right now. Send anyway?`)) return;
     let left = UNDO_SECONDS;
     setCountdown(left);
-    timer.current = window.setInterval(() => {
+    undoTimer.current = window.setInterval(() => {
       left -= 1;
       if (left > 0) return setCountdown(left);
       cancelUndo();
