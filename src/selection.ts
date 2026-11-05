@@ -20,10 +20,11 @@ export function mbSearch() {
   if (term) window.open(MB_SEARCH_URL + encodeURIComponent(term), '_blank', 'noopener');
 }
 
-export const IR_SEARCH_URL =
-  'https://app.impact.com/secure/mediapartner/marketplace/new-campaign-marketplace-flow.ihtml?execution=e2s1&q=';
+const IR_SEARCH_URL = (q: string) =>
+  'https://app.impact.com/secure/mediapartner/marketplace/new-campaign-marketplace-flow.ihtml?execution=e3s1&state=joined' +
+  `#joinState=joined&q=${q}&sortBy=salepercent&sortOrder=DESC`;
 
 export function irSearch() {
   const term = highlightedText() || prompt('Impact search for:')?.trim();
-  if (term) window.open(IR_SEARCH_URL + encodeURIComponent(term), '_blank', 'noopener');
+  if (term) window.open(IR_SEARCH_URL(encodeURIComponent(term)), '_blank', 'noopener');
 }
