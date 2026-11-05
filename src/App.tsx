@@ -12,7 +12,7 @@ import { ThreadView } from './components/ThreadView';
 import { SignatureDialog } from './components/SignatureDialog';
 import { TemplatesDialog } from './components/TemplatesDialog';
 import { Composer } from './components/Composer';
-import { mbSearch } from './selection';
+import { irSearch, mbSearch } from './selection';
 
 const SYNC_EVERY_MS = 60_000;
 
@@ -568,6 +568,14 @@ function Inbox({ user }: { user: User }) {
           onClick={mbSearch}
         >
           🔍 MB
+        </button>
+        <button
+          className="ir-search"
+          title="Highlight text anywhere (even inside an email), then click to search the Impact marketplace"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={irSearch}
+        >
+          IR
         </button>
         <span className={`sync ${expired ? 'off' : ''}`}>
           ● {expired ? 'Paused' : lastSync ? `Synced ${new Date(lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Syncing…'}
