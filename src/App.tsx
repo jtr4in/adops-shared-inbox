@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { AUTH_EXPIRED, AUTH_RENEWED, auth, canStayConnected, getGmailToken, isLinked, linkGoogle, signIn, signOut, silentRenew, tokenExpiresAt } from './firebase';
 import { CATEGORIES, MY_FOLDERS, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, autoAssignee, type Mailbox } from './config';
-import { AuthExpiredError, displayName, listThreads, setArchived, setThreadRead, type ThreadSummary } from './gmail';
+import { AuthExpiredError, displayName, listThreads, setArchived, setStarred, setThreadRead, type ThreadSummary } from './gmail';
 import { categoryOf, useFolders, updateTriage, usePresence, useReportPresence, useTriage, type Triage } from './triage';
 import { Sidebar, viewId, type View } from './components/Sidebar';
 import { ThreadList } from './components/ThreadList';
@@ -89,7 +89,8 @@ function saveList(q: string, threads: ThreadSummary[]) {
 const SIDE_W = 230;
 
 function matches(view: View, t: ThreadSummary, tr: Triage | undefined, me: string) {
-  const done = !!tr?.done;
+  // My star keeps an email in my open lists even if a teammate marks it Done.
+  const done = !!tr?.done && !(t.starred && view.kind !== 'done');
   switch (view.kind) {
     case 'every':
       return true; // open and Done alike
@@ -385,9 +386,18 @@ function Inbox({ user }: { user: User }) {
     (canStayConnected() ? linkGoogle() : signIn()).then(() => setLinkedNow(isLinked())).catch((e) => setError(String(e?.message ?? e)));
   const [linkedNow, setLinkedNow] = useState(isLinked);
 
+  const toggleStar = (t: ThreadSummary) => {
+    const on = !t.starred;
+    setThreads((cur) => cur.map((x) => (x.threadId === t.threadId ? { ...x, starred: on } : x)));
+    setStarred(t.threadId, on).catch((e) => setError(String(e)));
+  };
+
   const visible = useMemo(
     // When searching, show Done emails too so a search always finds them.
-    () => threads.filter((t) => (search && view.kind === 'all') || matches(view, t, triage[t.key], me)),
+    () => {
+      const list = threads.filter((t) => (search && view.kind === 'all') || matches(view, t, triage[t.key], me));
+      return [...list.filter((t) => t.starred), ...list.filter((t) => !t.starred)]; // starred pinned on top
+    },
     [threads, triage, view, me, search, foldersVersion],
   );
 
@@ -654,6 +664,7 @@ function Inbox({ user }: { user: User }) {
           onChecked={setChecked}
           onBulk={bulk}
           onBulkRead={bulkRead}
+          onStar={toggleStar}
           onLoadMore={next ? loadMore : undefined}
           loading={loading}
           caption={`Showing ${mailboxLabel}`}
@@ -691,6 +702,7 @@ function Inbox({ user }: { user: User }) {
             me={me}
             others={presence.filter((p) => p.threadKey === current.key)}
             onComposing={setComposing}
+            onStar={() => toggleStar(current)}
             onMarkUnread={() => {
               setRead([current.threadId], false);
               setSelected(null); // like Gmail: back to the list, so it isn't re-read straight away

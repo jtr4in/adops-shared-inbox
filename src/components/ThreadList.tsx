@@ -14,6 +14,7 @@ interface Props {
   onChecked: (ids: Set<string>) => void;
   onBulk: (patch: Partial<Triage>) => void;
   onBulkRead: (read: boolean) => void;
+  onStar: (t: ThreadSummary) => void;
   onLoadMore?: () => void;
   loading?: boolean;
   caption: string;
@@ -136,6 +137,16 @@ export function ThreadList(p: Props) {
                 onClick={(e) => toggle(i, e)}
                 readOnly
               />
+              <span
+                className={`star ${t.starred ? 'on' : ''}`}
+                title={t.starred ? 'Unstar' : 'Star (just for me, stays on top)'}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  p.onStar(t);
+                }}
+              >
+                {t.starred ? '★' : '☆'}
+              </span>
               <span className="from">{t.sent ? `To: ${displayName(t.to)}` : displayName(t.from)}{t.count > 1 && <span className="muted small"> {t.count}</span>}</span>
               {tr?.flagged && <span className="flag">⚑</span>}
               {p.presence

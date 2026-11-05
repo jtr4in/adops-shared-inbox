@@ -56,9 +56,11 @@ export const myAddresses = (me: string) => [me, ...(TEAM.find((t) => t.email ===
 export function mailboxQuery(id: Mailbox, me = ''): string {
   if (id === 'me' && me) {
     const mine = [...new Set(myAddresses(me))].map((a) => `to:${a} cc:${a}`).join(' ');
-    return `{${mine}} -${TO_GROUP}`;
+    return `{({${mine}} -${TO_GROUP}) is:starred}`;
   }
-  return `${MAILBOXES.find((m) => m.id === id)!.query}`;
+  const q = MAILBOXES.find((m) => m.id === id)!.query;
+  // My starred emails always load, even after a teammate marks them Done (archived).
+  return id === 'sent' ? q : `{(${q}) is:starred}`;
 }
 
 // Smart folders. AdOps folders are shared (first match wins; anything unmatched is General

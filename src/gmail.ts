@@ -109,6 +109,7 @@ export interface ThreadSummary {
   people: number; // distinct addresses across the chain
   firstTo: string[];
   inInbox: boolean;
+  starred?: boolean; // my own Gmail star: personal, pinned to the top
   // For smart folders: every address in the chain and the first email's preview, so a folder
   // keeps matching after we reply (when the newest sender and preview are ours).
   participants?: string;
@@ -224,7 +225,7 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
 // Thread summaries cached by threadId + historyId, so a refresh only
 // re-fetches threads that actually changed.
 // Kept in this browser (localStorage) so reopening the app doesn't re-download every email.
-const CACHE_KEY = 'summaryCache:v4';
+const CACHE_KEY = 'summaryCache:v5';
 const summaryCache = new Map<string, { historyId: string; summary: ThreadSummary }>(
   (() => {
     try {
@@ -269,6 +270,7 @@ function summarize(t: { messages: RawMessage[] }): ThreadSummary {
     firstSnippet: first.snippet,
     firstTo: addresses(first.to),
     inInbox: t.messages.some((m) => m.labelIds?.includes('INBOX')),
+    starred: t.messages.some((m) => m.labelIds?.includes('STARRED')),
     hasFiles: t.messages.some((m) => m.payload?.mimeType === 'multipart/mixed'),
   };
 }
@@ -363,6 +365,13 @@ export async function setThreadRead(threadId: string, read: boolean) {
 }
 
 // Archive (remove from Inbox) or un-archive a thread in the signed-in person's own Gmail.
+export async function setStarred(threadId: string, on: boolean) {
+  await gmail(`/threads/${threadId}/modify`, {
+    method: 'POST',
+    body: JSON.stringify(on ? { addLabelIds: ['STARRED'] } : { removeLabelIds: ['STARRED'] }),
+  });
+}
+
 export async function setArchived(threadId: string, archived: boolean) {
   await gmail(`/threads/${threadId}/modify`, {
     method: 'POST',

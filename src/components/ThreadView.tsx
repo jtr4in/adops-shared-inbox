@@ -16,9 +16,10 @@ interface Props {
   others: Presence[]; // teammates on this same thread right now
   onComposing: (composing: boolean) => void;
   onMarkUnread: () => void;
+  onStar: () => void;
 }
 
-export function ThreadView({ summary, triage, me, others, onComposing, onMarkUnread }: Props) {
+export function ThreadView({ summary, triage, me, others, onComposing, onMarkUnread, onStar }: Props) {
   const [messages, setMessages] = useState<Message[] | null>(() => {
     const c = cachedThread(summary.threadId);
     return c && c.length === summary.count ? c : null;
@@ -116,6 +117,13 @@ export function ThreadView({ summary, triage, me, others, onComposing, onMarkUnr
                 </option>
               ))}
             </select>
+            <button
+              className={`icon-btn star ${summary.starred ? 'on' : ''}`}
+              title={summary.starred ? 'Unstar' : 'Star (just for me, stays on top)'}
+              onClick={onStar}
+            >
+              {summary.starred ? '★' : '☆'}
+            </button>
             <button
               className={`icon-btn ${triage?.flagged ? 'on flagged' : ''}`}
               title={triage?.flagged ? 'Unflag' : 'Flag for help'}

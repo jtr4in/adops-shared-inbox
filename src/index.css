@@ -290,3 +290,6 @@ body.dragging iframe { pointer-events: none; }
 .note-tabs button { font-size: 12px; padding: 2px 10px; border-radius: 12px; }
 .note-tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .note-tabs .muted { margin-left: 6px; }
+.star { cursor: pointer; color: #9aa0a6; font-size: 15px; line-height: 1; }
+.star:hover { color: #f4b400; }
+.star.on { color: #f4b400; }
