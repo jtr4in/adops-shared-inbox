@@ -286,6 +286,12 @@ export function chainPeople(msgs: Pick<Message, 'from' | 'to' | 'cc'>[]): string
   return [...out.values()];
 }
 
+// Gmail only matches whole words ("feedz" misses "GetFeedz"), so also look for the text
+// inside the emails this browser already knows about.
+export function cachedSummaries(): ThreadSummary[] {
+  return [...summaryCache.values()].map((v) => v.summary);
+}
+
 export async function listThreads(
   q: string,
   max = 30,

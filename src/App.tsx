@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { AUTH_EXPIRED, AUTH_RENEWED, auth, canStayConnected, getGmailToken, isLinked, linkGoogle, signIn, signOut, silentRenew, tokenExpiresAt } from './firebase';
 import { CATEGORIES, MY_FOLDERS, GROUP_ADDRESS, MAILBOXES, mailboxQuery, TEAM, teammateName, autoAssignee, type Mailbox } from './config';
-import { AuthExpiredError, displayName, listThreads, setArchived, setStarred, setThreadRead, type ThreadSummary } from './gmail';
+import { AuthExpiredError, displayName, listThreads, cachedSummaries, setArchived, setStarred, setThreadRead, type ThreadSummary } from './gmail';
 import { categoryOf, useFolders, updateTriage, usePresence, useReportPresence, useTriage, type Triage } from './triage';
 import { Sidebar, viewId, type View } from './components/Sidebar';
 import { ThreadList } from './components/ThreadList';
@@ -84,6 +84,21 @@ function saveList(q: string, threads: ThreadSummary[]) {
   } catch {
     localStorage.removeItem(LIST_KEY); // full: start fresh rather than break
   }
+}
+
+// Partial-word matches among emails already in this browser (Gmail search can't do these).
+function partialMatches(q: string, have: ThreadSummary[]): ThreadSummary[] {
+  if (/[:"{}()]/.test(q)) return []; // Gmail operators: leave it to Gmail
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  const seen = new Set(have.map((t) => t.threadId));
+  const pool = new Map<string, ThreadSummary>();
+  for (const t of [...cachedSummaries(), ...Object.values(readLists()).flatMap((l) => l.threads)]) pool.set(t.threadId, t);
+  return [...pool.values()].filter((t) => {
+    if (seen.has(t.threadId)) return false;
+    const text = `${t.subject} ${t.from} ${t.to} ${t.cc} ${t.snippet} ${t.participants ?? ''} ${t.firstSnippet ?? ''}`.toLowerCase();
+    return words.every((w) => text.includes(w));
+  });
 }
 
 const SIDE_W = 230;
@@ -212,6 +227,7 @@ function Inbox({ user }: { user: User }) {
       setError('');
       try {
         const r = await listThreads(query, 75);
+        if (q) r.threads = [...r.threads, ...partialMatches(q, r.threads)].sort((a, b) => b.date - a.date);
         if (asked !== latestQuery.current) return; // you switched away meanwhile
         if (mailbox !== 'sent' && !q) {
           if (seen.current) {
