@@ -143,6 +143,12 @@ function Inbox({ user }: { user: User }) {
   const [navOpen, setNavOpen] = useState(false);
   const [calOpen, setCalOpen] = useState(() => !!localStorage.getItem('calOpen'));
   const [search, setSearch] = useState('');
+  // Search runs a moment after you stop typing (or on Enter), not on every keystroke.
+  const [q, setQ] = useState('');
+  useEffect(() => {
+    const id = setTimeout(() => setQ(search.trim()), 500);
+    return () => clearTimeout(id);
+  }, [search]);
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<'sig' | 'templates' | 'compose' | 'keys' | 'folders' | null>(null);
@@ -151,16 +157,16 @@ function Inbox({ user }: { user: User }) {
 
   const query = useMemo(() => {
     const base = mailboxQuery(mailbox, me);
-    // "all:" searches your whole Gmail, ignoring the mailbox filter.
-    if (search.startsWith('all:')) return search.slice(4).trim() || base;
+    // Searching works like Gmail's own search box: all your mail (archived and Done too),
+    // not just this mailbox or folder. "all:" still works, for old habits.
+    if (q) return q.replace(/^all:/, '').trim() || base;
     // My folders run as a Gmail search, so they find every matching email (any sender,
     // recipient or word in the body), not just the ones already loaded in the list.
     const folder = view.kind === 'myfolder' ? MY_FOLDERS.find((f) => f.name === view.name) : undefined;
     const words = folder?.keywords.split(',').map((w) => w.trim()).filter(Boolean)
       .map((w) => (/\s/.test(w) ? `"${w.replace(/"/g, '')}"` : w));
-    const withFolder = words?.length ? `${base} {${words.join(' ')}}` : base;
-    return search ? `${withFolder} ${search}` : withFolder;
-  }, [mailbox, search, me, view, foldersVersion]);
+    return words?.length ? `${base} {${words.join(' ')}}` : base;
+  }, [mailbox, q, me, view, foldersVersion]);
 
   // Desktop alerts for new mail and for things assigned to you by a teammate.
   const [alertsOn, setAlertsOn] = useState(() => 'Notification' in window && Notification.permission === 'granted');
@@ -206,7 +212,7 @@ function Inbox({ user }: { user: User }) {
       try {
         const r = await listThreads(query, 75);
         if (asked !== latestQuery.current) return; // you switched away meanwhile
-        if (mailbox !== 'sent' && !search) {
+        if (mailbox !== 'sent' && !q) {
           if (seen.current) {
             const fresh = r.threads.filter((t) => !seen.current!.has(t.threadId) && !t.sent);
             if (fresh.length === 1) notify(`New: ${fresh[0].subject}`, displayName(fresh[0].from), fresh[0].threadId);
@@ -233,7 +239,7 @@ function Inbox({ user }: { user: User }) {
         if (again) setTimeout(() => refreshRef.current(again === true), 0);
       }
     },
-    [query, mailbox, search, notify],
+    [query, mailbox, q, notify],
   );
 
   refreshRef.current = refresh;
@@ -393,12 +399,12 @@ function Inbox({ user }: { user: User }) {
   };
 
   const visible = useMemo(
-    // When searching, show Done emails too so a search always finds them.
+    // When searching, show every result Gmail returns, whatever folder or view you're on.
     () => {
-      const list = threads.filter((t) => (search && view.kind === 'all') || matches(view, t, triage[t.key], me));
+      const list = threads.filter((t) => !!q || matches(view, t, triage[t.key], me));
       return [...list.filter((t) => t.starred), ...list.filter((t) => !t.starred)]; // starred pinned on top
     },
-    [threads, triage, view, me, search, foldersVersion],
+    [threads, triage, view, me, q, foldersVersion],
   );
 
   // After an email leaves the list (Done, reassigned…), open the next one: newer, older, or none.
@@ -524,10 +530,11 @@ function Inbox({ user }: { user: User }) {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              refresh(true);
+              if (search.trim() === q) refresh(true);
+              else setQ(search.trim());
             }}
           >
-            <input placeholder="Search mail (Gmail syntax)" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input placeholder="Search all mail (like Gmail)" value={search} onChange={(e) => setSearch(e.target.value)} />
           </form>
         </div>
   );
