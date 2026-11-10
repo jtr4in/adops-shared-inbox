@@ -34,7 +34,6 @@ export const TEAM: Teammate[] = (env.VITE_TEAM || '')
 export const teammateName = (email?: string | null) =>
   TEAM.find((t) => t.email === email)?.name ?? email ?? '';
 
-const G = GROUP_ADDRESS;
 // Gmail's {a b c} means "a OR b OR c".
 // deliveredto: also catches mail where adops@ was Bcc'd or forwarded in.
 const TO_GROUP = `{${GROUP_ADDRESSES.map((g) => `list:${g} to:${g} cc:${g} from:${g} deliveredto:${g}`).join(' ')}}`;
@@ -42,9 +41,9 @@ const TO_GROUP = `{${GROUP_ADDRESSES.map((g) => `list:${g} to:${g} cc:${g} from:
 export type Mailbox = 'team' | 'me' | 'all' | 'sent';
 
 export const MAILBOXES: { id: Mailbox; label: string; query: string }[] = [
-  { id: 'all', label: 'All combined', query: `{${TO_GROUP.slice(1, -1)} in:inbox}` },
-  { id: 'team', label: `Team (${G.split('@')[0]}@)`, query: TO_GROUP },
-  { id: 'me', label: 'Just to me', query: `in:inbox -${TO_GROUP}` },
+  { id: 'all', label: 'Everything', query: `{${TO_GROUP.slice(1, -1)} in:inbox}` },
+  { id: 'team', label: 'Team only', query: TO_GROUP },
+  { id: 'me', label: 'Just me', query: `in:inbox -${TO_GROUP}` },
   { id: 'sent', label: 'Sent', query: 'in:sent' },
 ];
 

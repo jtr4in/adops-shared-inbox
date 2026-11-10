@@ -1,7 +1,7 @@
-import { CATEGORIES, MAILBOXES, MY_FOLDERS, TEAM, type Mailbox } from '../config';
+import { CATEGORIES, MY_FOLDERS, TEAM } from '../config';
 
 export type View =
-  | { kind: 'every' | 'all' | 'unassigned' | 'mine' | 'flagged' | 'done' }
+  | { kind: 'sent' | 'all' | 'unassigned' | 'mine' | 'flagged' | 'done' }
   | { kind: 'member'; email: string }
   | { kind: 'category'; name: string }
   | { kind: 'myfolder'; name: string };
@@ -10,17 +10,15 @@ export const viewId = (v: View) =>
   v.kind === 'member' ? `member:${v.email}` : v.kind === 'category' ? `cat:${v.name}` : v.kind === 'myfolder' ? `my:${v.name}` : v.kind;
 
 const VIEWS: { view: View; label: string; icon: string }[] = [
-  { view: { kind: 'every' }, label: 'All', icon: '☰' },
-  { view: { kind: 'all' }, label: 'Open', icon: '✉' },
-  { view: { kind: 'unassigned' }, label: 'Unassigned', icon: '◌' },
+  { view: { kind: 'all' }, label: 'Inbox', icon: '✉' },
   { view: { kind: 'mine' }, label: 'Assigned to me', icon: '☺' },
+  { view: { kind: 'unassigned' }, label: 'Unassigned', icon: '◌' },
   { view: { kind: 'flagged' }, label: 'Flagged', icon: '⚑' },
   { view: { kind: 'done' }, label: 'Done', icon: '✓' },
+  { view: { kind: 'sent' }, label: 'Sent', icon: '➤' },
 ];
 
 interface Props {
-  mailbox: Mailbox;
-  onMailbox: (m: Mailbox) => void;
   view: View;
   onView: (v: View) => void;
   counts: Record<string, number>;
@@ -28,7 +26,7 @@ interface Props {
   onFolderSettings: () => void;
 }
 
-export function Sidebar({ mailbox, onMailbox, view, onView, counts, onCompose, onFolderSettings }: Props) {
+export function Sidebar({ view, onView, counts, onCompose, onFolderSettings }: Props) {
   const item = (v: View, label: string, icon: string) => (
     <button
       key={viewId(v)}
@@ -37,7 +35,7 @@ export function Sidebar({ mailbox, onMailbox, view, onView, counts, onCompose, o
     >
       <span className="icon">{icon}</span>
       <span className="label">{label}</span>
-      <span className="count">{counts[viewId(v)] || ''}</span>
+      <span className="count">{(v.kind !== 'sent' && counts[viewId(v)]) || ''}</span>
     </button>
   );
   return (
@@ -45,18 +43,6 @@ export function Sidebar({ mailbox, onMailbox, view, onView, counts, onCompose, o
       <button className="primary wide" onClick={onCompose}>
         + New email
       </button>
-      <div className="section">Mailbox</div>
-      {MAILBOXES.map((m) => (
-        <button
-          key={m.id}
-          className={`nav ${mailbox === m.id ? 'active-soft' : ''}`}
-          onClick={() => onMailbox(m.id)}
-        >
-          <span className="icon">{m.id === 'sent' ? '➤' : m.id === 'me' ? '☺' : '☰'}</span>
-          <span className="label">{m.label}</span>
-        </button>
-      ))}
-      <div className="section">Inbox views</div>
       {VIEWS.map((v) => item(v.view, v.label, v.icon))}
       <div className="section with-btn">
         Smart folders

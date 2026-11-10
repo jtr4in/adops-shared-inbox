@@ -295,3 +295,6 @@ body.dragging iframe { pointer-events: none; }
 .star.on { color: #f4b400; }
 .composer-bar .primary.undo { background: #5f6368; }
 .ir-search { background: #fff; color: #d92d20; border-color: #d92d20; font-weight: 700; white-space: nowrap; }
+.scope-chips { display: flex; gap: 6px; margin-top: 6px; }
+.scope-chips .chip { border: 1px solid #dadce0; background: #fff; border-radius: 12px; padding: 2px 10px; font-size: 12px; cursor: pointer; }
+.scope-chips .chip.on { background: #e8f0fe; border-color: #1a73e8; color: #1a73e8; }

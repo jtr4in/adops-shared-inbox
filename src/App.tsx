@@ -92,8 +92,8 @@ function matches(view: View, t: ThreadSummary, tr: Triage | undefined, me: strin
   // My star keeps an email in my open lists even if a teammate marks it Done.
   const done = !!tr?.done && !(t.starred && view.kind !== 'done');
   switch (view.kind) {
-    case 'every':
-      return true; // open and Done alike
+    case 'sent':
+      return true; // the Sent mailbox, no triage filter
     case 'all':
       return !done;
     case 'unassigned':
@@ -114,7 +114,6 @@ function matches(view: View, t: ThreadSummary, tr: Triage | undefined, me: strin
 }
 
 const allViews = (): View[] => [
-  { kind: 'every' },
   { kind: 'all' },
   { kind: 'unassigned' },
   { kind: 'mine' },
@@ -128,7 +127,8 @@ function Inbox({ user }: { user: User }) {
   const me = user.email!.toLowerCase();
   const triage = useTriage();
   const foldersVersion = useFolders(me);
-  const [mailbox, setMailbox] = useState<Mailbox>('all');
+  // Which mail the inbox views cover: everything (default), only the team address, or only mine.
+  const [scope, setScope] = useState<Mailbox>(() => (localStorage.getItem('scope') as Mailbox) || 'all');
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const pending = useRef<boolean | 'soft'>(false);
   const refreshRef = useRef<(reset?: boolean) => void>(() => {});
@@ -155,6 +155,7 @@ function Inbox({ user }: { user: User }) {
   const [now, setNow] = useState(Date.now());
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const mailbox: Mailbox = view.kind === 'sent' ? 'sent' : scope;
   const query = useMemo(() => {
     const base = mailboxQuery(mailbox, me);
     // Searching works like Gmail's own search box: all your mail (archived and Done too),
@@ -536,6 +537,22 @@ function Inbox({ user }: { user: User }) {
           >
             <input placeholder="Search all mail (like Gmail)" value={search} onChange={(e) => setSearch(e.target.value)} />
           </form>
+          {view.kind !== 'sent' && !q && (
+            <div className="scope-chips">
+              {(['all', 'team', 'me'] as const).map((m) => (
+                <button
+                  key={m}
+                  className={`chip ${scope === m ? 'on' : ''}`}
+                  onClick={() => {
+                    setScope(m);
+                    localStorage.setItem('scope', m);
+                  }}
+                >
+                  {m === 'all' ? 'Everything' : m === 'team' ? 'Team only' : 'Just me'}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
   );
 
@@ -658,11 +675,6 @@ function Inbox({ user }: { user: User }) {
         }}
         style={{ gridTemplateColumns: `${sideW}px ${listW}px 6px 1fr` }}>
         <Sidebar
-          mailbox={mailbox}
-          onMailbox={(m) => {
-            setMailbox(m);
-            setSelected(null);
-          }}
           view={view}
           onView={setView}
           counts={counts}
