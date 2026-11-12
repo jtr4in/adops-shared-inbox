@@ -402,10 +402,10 @@ export async function listSendAs(): Promise<SendAs[]> {
 
 // "Name <a@b.com>, c@d.com" -> ["a@b.com", "c@d.com"]
 export function addresses(list: string): string[] {
-  return list
-    .split(',')
-    .map((s) => (s.match(/<([^>]+)>/)?.[1] ?? s).trim().toLowerCase())
-    .filter((s) => s.includes('@'));
+  // Pull out every email address, whatever separates them (commas, semicolons, spaces,
+  // names with commas in quotes…), so a messy To line can't make Gmail reject the send.
+  const found = list.match(/[a-z0-9._%+'-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) ?? [];
+  return [...new Set(found.map((a) => a.toLowerCase().replace(/\.+$/, '')))];
 }
 
 export const displayName = (addr: string) =>
@@ -461,7 +461,7 @@ export function fileToOutgoing(f: File): Promise<OutgoingFile> {
 export async function send(o: Outgoing) {
   const lines = [
     `From: ${o.from}`,
-    `To: ${o.to.join(', ')}`,
+    o.to.length ? `To: ${o.to.join(', ')}` : '',
     o.cc.length ? `Cc: ${o.cc.join(', ')}` : '',
     // Gmail delivers to Bcc and strips the header before anyone else sees it.
     o.bcc?.length ? `Bcc: ${o.bcc.join(', ')}` : '',

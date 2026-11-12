@@ -357,6 +357,8 @@ export function Composer({ mode, messages, subject = '', me, onClose, onSent, ot
       onSent();
     } catch (e) {
       setError(String(e));
+      // Sent after clicking away: the composer is gone, so say so (the draft is still saved).
+      if (!editor.current) alert(`Your email to ${to} didn't send: ${e}\n\nIt's still saved as a draft on that email.`);
     } finally {
       setSending(false);
     }
